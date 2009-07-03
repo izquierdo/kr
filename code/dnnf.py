@@ -2,6 +2,7 @@ from pprint import pprint
 from pybayes.Models.bn import *
 from pybayes.Graph.graphs import *
 from pybayes.Combinatorics.combinatorial import Combination
+from c2dpipe import run_c2d
 
 def test():
     name = "dogproblem"
@@ -58,10 +59,10 @@ def test2():
     E = [(A,B)]
     ### Conditional distributions
     A.cpt = Factor([A],[0.15,0.85])
-    B.cpt = Factor([A, B], [0.6,0.4,0.05,0.95])
+    B.cpt = Factor([B, A], [0.6,0.4,0.05,0.95])
     g = DBN(V,E,name,header)
     
-    print header
+    # print header
     todnnf(g)
 
 
@@ -69,13 +70,13 @@ def todnnf(dbn):
     parents = find_parents(dbn.G)
     lambdas = {}
     thetas = {}
-    varn = 1
+    varcount = 1
 
     # crear las variables
     for var in dbn.V:
         for value in var.Domain:
-            lambdas[var, value] = varn
-            varn += 1
+            lambdas[var, value] = varcount
+            varcount += 1
 
         p = parents.get(var)
         if p is not None:
@@ -83,35 +84,31 @@ def todnnf(dbn):
             # selfindex = domain.index(var)
             # print var, p, var.cpt.domain(), selfindex
             for m in Combination(var.cpt.domain()):
-                thetas[var, tuple(m)] = varn
-                varn += 1
+                thetas[var, tuple(m)] = varcount
+                varcount += 1
 
+
+    clauses = []
     for var in dbn.V:
-        for value in var.Domain:
-            print lambdas[var, value],
-        print 0
+        clauses.append([lambdas[var, value] for value in var.Domain] + [0])
         domain = var.Domain
         for i in range(len(domain)):
             for j in range(i+1, len(domain)):
-                print -lambdas[var, domain[i]], -lambdas[var, domain[j]], 0
+                clauses.append([-lambdas[var, domain[i]], -lambdas[var, domain[j]], 0])
 
     for theta in thetas:
-        print theta
         var = theta[0]
-        varvalue = theta[1][-1]     # esto supone que la ultima columna en el CPT siempre es la variable del mismo nodo
-
         u = zip(theta[1], var.cpt.M[0])
-        print u
-        for (value2, var2) in u:
-            print -lambdas[var2, value2],
-        print thetas[theta], 0
+        clauses.append([-lambdas[var2, value2] for (value2, var2) in u] + [thetas[theta], 0])
+        u.pop(0) # esto supne que la primera variable de un CPT es la variable no condicional
+        clauses.extend([-thetas[theta], lambdas[var2, value2], 0] for (value2, var2) in u)
+            
+    cnf = "p cnf %s %s\n" % (varcount-1, len(clauses))
+    cnf += "\n".join(" ".join(str(y) for y in x) for x in clauses)
+    nnf = run_c2d(cnf)
+    print nnf
+    return nnf
 
-        u.pop()
-        for value2, var2 in u:
-            print -thetas[theta], lambdas[var2, value2]
-            
-        
-            
 
 if __name__ == "__main__":
     test2()
