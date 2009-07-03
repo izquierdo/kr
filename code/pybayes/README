@@ -1,0 +1,45 @@
+=== pyBayes ==========================================================
+
+This document provides the basics to start using pyBayes. Please, read it before start messing with the code. Note that pyBayes is in its very early stage, so most of the things are experimental, far from being optimized, and often unimplemented.
+
+1. Introduction
+
+pyBayes is a python implementation of graphical probabilistic models such as Bayesian Networks and Markov Random Fields. In particular, most of the project is guided towards the creation of a nice framework for machine learning and decision making algorithms based on Discrete Bayesian Networks. The main objective is to provide a "clean" code, with the minimum of non-native data structures (i.e. data structures not present in pure Python such as lists, tuples, dicts, etc.). For example, most of DBN implementations create a class for graphs, which is clearly not needed in python, because they can be easily represented by tuples of sets (as it's formal definition) and efficiently as dicts (adjacency maps). So, the goal is to develop an API for graph-based probabilistic models that allows people to benefit from such models without having to spent much time learning the API. The idea is that people use common mathematical notation (as far as this is possible in python) to create models and make inferences without worring about new data structures. Furthermore, specific data structure such as Bayesian Networks, Random Variables and so on, are to be coded in the most intuitive way as possible.
+
+2. Installation
+
+So far, no installation procedure was adopted. Just copy everything into a sub-directory named pybayes and run python.
+
+probstats library is used in a new version of factors that is not actually being used (but it is intended to be faster and "cleaner"). If you want to use it, please search for prob_stats library on the web and install it.
+
+3. Getting Started
+
+Perhaps the easiest way to learn something is by taking a look at some examples. The files sprinkler.py, dog.py and learndog.py are good examples of how to create, learn and make inferences with Discrete Bayesian Networks in pyBayes. In particular, sprinkler.py has a nice example to understand the philosophy behind pyBayes.
+
+To run an example from the Examples directory first open python in the parent directory where you put pybayes (E.g. if you copied pybayes into /home/user/pybayes, you should cd /home/user and then run python from there).
+Then, import the example you want to run and run the run command from there.
+
+E.g. (assuming you copied pybayes into a pybayes directory in your home folder)
+
+  cd ~
+  python
+  >>> import pybayes.Examples.sprinkler as s
+  >>> s.run()
+
+
+4. Documentation
+
+There is a tutorial attached to the source code of pyBayes, but as everything else, it is unfinished. Nevertheless, there is some basic introduction that can be helpful to start using pyBayes.
+
+5. Target Users
+
+pyBayes is intended to anyone who want to benefit from both python and Bayesian Networks. However, at this stage, it is not recommended for users who want to create large models or have scalability issues. To be honest, to date, pyBayes should be used only for testing small networks, perhaps learning them from data. On the other hand, it should be enough for people willing to practice the basics of Bayesian Networks. 
+
+6. Dreams
+
+My hope is that someday in the future, pyBayes will be able to provide an elegant implementation of a API for the specification (with GUIs), inference and learning of Bayesian Networks (discrete, continuous and hybrids) with 'clean' interfaces in python and efficient code written in C. Furthermore it would be very nice to have a package to implement Markov Processes in general, but I think this is too far from being achieved someday with this project. Finally, I'm currently interested in the Stastical Relational Learning area, so it's possible that some of the SRL stuff be incorporated in the package (there's actually a relational tan included but at present it is useless).
+
+7. Conclusion
+
+Even this short note is rudimentary, so please feel free to contact me for any doubt or sugestion at denis.maua@usp.br or denis.maua@gmail.com
+

@@ -1,0 +1,10 @@
+#F.cpt = Factor([F],[0.15,0.85])
+#B.cpt = Factor([B],[0.01,0.99])
+#L.cpt = Factor([L, F], [0.6,0.4,0.05,0.95])
+#D.cpt = Factor([D, F, B], [0.99,0.01,0.97,0.03,0.9,0.1,0.3,0.7])	
+#H.cpt = Factor([H, D], [0.7,0.3,0.01,0.99])
+#family_out,bowel_problem,lights,dog_out,hear_bark
+yes,yes,on,yes,yes
+yes,yes,off,yes,yes 
+no,yes,on,no,no 
+no,yes,on,yes,no

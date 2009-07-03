@@ -1,0 +1,16 @@
+this directory containg syntetic data used in the dog network examples
+
+the number after the name stem indicates the number of instances sampled from the original model.
+
+The originial paramteres are
+
+	 b:   	       yes (p: 0.010000000) no (p: 0.990000000)
+	 f:   	       yes (p: 0.150000000) no (p: 0.850000000)
+	 h(no):        yes (p: 0.010000000) no (p: 0.990000000)
+	 h(yes):       yes (p: 0.700000000) no (p: 0.300000000)
+	 l(no):        on (p: 0.050000000) off (p: 0.950000000)
+	 l(yes):       on (p: 0.600000000) off (p: 0.400000000)
+	 d(no,no):     yes (p: 0.300000000) no (p: 0.700000000)
+	 d(no,yes):    yes (p: 0.970000000) no (p: 0.030000000)
+	 d(yes,no):    yes (p: 0.900000000) no (p: 0.100000000)
+	 d(yes,yes):   yes (p: 0.990000000) no (p: 0.010000000)

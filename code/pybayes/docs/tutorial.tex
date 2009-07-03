@@ -1,0 +1,194 @@
+\documentclass[10pt,a4paper]{report}
+\usepackage[utf8]{inputenc}
+%\usepackage{ucs}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\author{Denis Deratani Mau\'{a}}
+\title{pyBayes User Guide}
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\chapter{Introduction}
+
+\section{Why Another Bayesian Networks Package?}
+
+Although there are now several open source implementations of Bayesian Networks tools, most of them, if not all, lack some sort of feature. Some popular BN softwares do not count with learning abilities, or provide only limited learning functions. Others do not read in common BN file format like BIF, making it difficult to migrate from one software to another. Most of them are hard to dive into the code, when some modification is desired. This project aims at overpassing these current implementation drawbacks, providing an ease-to-use and ease-to-modify cross-platform BN API.
+
+The most prominent idea of this package is to support further algorithm development that require BN, allowing users to take advantage of Bayesian networks' nice characteristics without getting deep into implementation details and lots of lines of code. Indeed, this project aims at creating a syntax the most near of formal (mathematical, bn and pseudo-code) notations as possible.
+
+\section{Why Python?}
+
+In order to fulfill our objective, we look after a programming language which could be the easiest as possible for a non programmer user, and the closest as possible to pseudo-code. In addition, cross-platform was a desired feature, and the easy of installation and execution was also considered. With all these in mind, python came naturally. Python has a syntax very close to pseudo-code, it is totally cross-platform (because some java programs require extra configuration to run in distincts platforms) and very easy to install and run. Programs written in Python have a very "clean" look, mostly because of the built-in data structures and because of the required indentation. Moreover, python is very flexible, allowing procedural programming, object-oriented programming and function-oriented programming.
+
+Because Python is an interpretative language, one should not expect this package to present great performance. Indeed, performance issues are disregarded in face of better code-reading and easy-to-use. That said, one should note that Python can easily be extended by C-modules, that way speeding up its performance. After all, for critical applications, one should really use pure C. 
+
+\section{Bayesian Networks}
+
+A Bayesian network is a concise representation of a probabilistic model. It consists of an annotated direct acyclic graph $G=(V,E)$, where the vertices represent random variables of interest and where the edges indicate conditional independences among these variables~\cite{cowell99}. A conditional probability distribution is attached to every variable in the network indicating the (probabilistic) relationship between a node and their parents. In Bayesian networks, a variable is independent of all its non-descendents nodes given its parents. Thus, the network represents a factorized joint probability distribution as follows:
+\[
+  Pr(V) = \prod_{v \in V}{Pr(v|pa(v))}.
+\]
+
+Bayesian networks are considered of great importance in the design of expert systems because they constitute an easy way to reason under uncertainty and represent expert knowledge. They have an intuitive semantic and a well founded theory, with fast and efficient inference procedures and learning algorithms. The widespread Expectation-Maximization~\cite{dempster77} algorithm used in parameter estimation can be used on Bayesian nets in a straight forward manner when dealing with missing data. Also, lots of attention have been directed to the learning of network structures, extracting variable relationships from observed data. 
+
+\subsection{A Bayesian Network Example: The Grass Wet Problem}
+In order to show how a situation can be modeled probabilistically by a Bayesian network, a motivation story example will pe presented in what follows.
+
+Suppose you have been in a closed place with no windows for all day. By night, at the time you return home, you realize that the grass in front of your house is wet, but you haven't heard the rain noise during the day. You get amazed and wonder, why would the grass be wet? Looking at your neighbour's yard, you observe that there is a sprinkler right next to your grass. Now you have two possible explanations. First, it had indeed rained and for somehow you haven't heard its sound (maybe you have been too focused on your daily task). Second, your neighbour's sprinkler have wet your grass accidentaly. Two assumptions are made now. First, you expect that on rainy days the sprinkler does not be turned on. Second, no other events but the two in question could cause your grass to be wet. Then, you begin to write down this problem as a conditional probility table. The entries in the table are the relatioships among the variables, that is, how one event influence on other event. The rain event is independent of all others events, as it is dictated by nature and (so we assume) no one has any controll of it. Thus, the probability of rain has only to do with what you read in the journal weather forecast. According to the forecast, today would be a cloudy day with possible precipitations at the end of the afternoon. As you do not blindly trust the forecast, you assign a probability of 80\% to the rain event and 20\% to the opposite, i.e. it hasn't rained. Although it seems silly that someone turns on the sprinkler on a rainny day, you consider this event very unlikely but not impossible. Than, you produce a two worlds scenario. In the first, it has rained. Following yours considerations you assign a 1\% probability for the sprinkler being turned on, given that it rained. To be consistent with the probabilities theory, you should assign a 99\% probability to the oppositte event, that is, to have not turned on the sprinkler, knowing that it rained. In the second world, you hypothise that it has no rained. You compute that on 40\% percent of the sunny days your neighbour should wet his yard and assings a 0.4 probability to the event sprinkler on given that it has rained. To sum up to 1.0, a turned off sprinkler given the knoledge of a sunny day has the probabilty of 0.6. Finally, you reason about the chances of your grass being wet on both worlds. Indeed, now you have to deals with four worlds, exausting the combinations of possible states of the sprinkler and rain. The most obvious is that if it hasn't rained and the sprinkler was not turned on, than there is no chance your grass being wet. In probabilistic words, we say that the probabilities of grass wet be true, given that rain event is false and that sprinkler in turned off is zero. Or, in common probabilities notation, $P(\texttt{grass wet}|\texttt{sprinkler}={off}, \texttt{rain}=false)=0$. The same reasoning is conducted to all other possible states of the world. For example, to the probability of the grass being wet given that it has rained and that the sprinkler was not turned on you assing a value of 0.8. The conditional probability tables... (to be finished).
+
+
+\chapter{Using pyBayes}
+In this chapter, we give the first steps one should take to learn how to use \verb|pyBayes| package to build probabilistic models and use them to make inferences. The first learning issues are also introduced as an explanation of parameters learning from complete data.
+
+\section{Bayesian Network Module Basics}
+\label{sec:basics}
+The first thing one should do to be able to use \verb|pyBayes| package is to import the Bayesian networks module, called \verb|bn|. In python we do this by the command \verb|import| as follows.
+
+\begin{verbatim}
+	from bn import *
+\end{verbatim}
+
+The \verb|*| means that every routine in file bn.py, including functions and classes, should be imported and used as local routines, that is, they don't need to be referenced by module name. Another form of importing the module without resorting to full inclusion is by performing the command:
+
+\begin{verbatim}
+	import bn
+\end{verbatim}
+
+Whereas with the former case we are able to use classes without module reference, in the latter all commands related to the \verb|bn| module have to be precede by a 'bn.' reference. Its highly recommended that you use the first option for the \verb|bn| module.
+
+Once we have imported the module we can enjoy all its features. The \verb|bn| module imports all the basic modules in the package, so there is no need to bother with other modules importing for now. Relevant modules uncovered by the \verb|bn| module importing will be reported and explained later.
+
+\section{Random Variables}
+\label{sec:randomvariables}
+A Bayesian network, and indeed every probabilistic model, is made of random variables~\footnote{Although some probabilistic models benefit from deterministic variables, because they are not common in Bayesian networks, and because most of them, if not all, can be subsumed by random variables with specific distributions, we will consider models based exclusively on random variables.}. These are the events, phenomenons, individuals or anything else one want to represent and wonder about, and that have a known domain. For now we will restrain variables to categorical domain, assuming that their possible values takes on a finite set of categories. Just as in real life, the elementary objects in \verb|pyBayes| are random variable objects. For them, there is a specific class denoted, intuitively, \verb|RandomVariable|. They are instantiated as follows.
+
+\begin{verbatim}
+	R = RandomVariable('Rain',['true','false'])
+\end{verbatim}
+
+The \verb|R| is the random variable object that will hold the reference to the \verb|RandomVariable| instance created. The first term in the object definition is the variable name. Variables name can take any alphanumeric character, plus the underline and the dot symbols. In this example, our variable is named \verb|'Rain'|. The second term of the example denotes the variables domain. These two parameters are required to instantiate a random variable object correctly. Variables domain is concerned with the set of values a variable can take on. This set is complete in that the variable can't take any value that do not belong to this set. Domain term is entered as a list of values. In theory, no restriction is made to the type of object a domain values should be. In this case they are simple strings, but they can be numbers, lists, tuples, dicts or any user-defined object. However, when values are not numbers or strings, screen output may seems ackward and far from user-friendly presentation. Random variables instances are compared by their names, so two variables with the same name but distinct domains will be held as equals in most of the algorithms of the package. \textbf{Take care of not inputing two different variables with the same name}.
+
+\section{Conditional Probability Distributions}
+\label{sec:cpt}
+A conditional probability distribution, sometimes called conditional probabilities table (CPT) for categorical domains, is the necessary and sufficient parameter of a random variable in Bayesian networks. It consists on a matrix listing the values of the probability of a random variable given its immediate parents in the graph.
+
+In \verb|pyBayes| there isn't a specific structure to represent conditional probabilities tables. Instead, one should use the more general data abstraction \verb|Factor|. Factors, or potencials, are mathematical objects used to represent parameters in graphical probabilistic models. They have a few common algebric properties like distributivity and commutivity, and also some interesting probabilistic properties such as marginalization.
+
+For example, to describe the CPT of binary random variable \verb|R| with no parents in the graph and probability $0.2$ of being true, one should do the following:
+
+\begin{verbatim}
+	R.cpt = Factor([R],[0.2,0.8])
+\end{verbatim}
+
+The first term in object \verb|Factor| is concerned with the variables whose probabilities are to be described. In cpts, these are the variable of interest and its parents. In this case, only the variable needs to be given as it has no parents. The second term denotes the probabilities theirselves. Values are entered in the same order as they appear in variable domain. Following the example of section~\ref{sec:randomvariables}, the variable domain is ordered by true value followed by false value.
+When a child variable cpt is described, probabilities values follow two orders: the variable list order in first term and each variable domain order. So, for a variable with one parent and both variables with domain as $(true,false)$ the following cpt object
+\begin{verbatim}
+	S.cpt = Factor([S],[0.4,0.6,0.01,0.99])
+\end{verbatim}
+describes, in order, the probability of \verb|S| being \verb|true| given that \verb|R| is true, the probability of \verb|S| being false given that \verb|R| is true, the probability of \verb|S| being true given that \verb|R| is false and finally, the probability of \verb|S| being false given that \verb|R| is false. Table~\ref{tab:twovariablescpt} represents better these probabilities.
+
+\begin{table}
+\centering
+\begin{tabular}{|c|c|c|}
+\hline S & R & P(S|R) \\ 
+\hline true & true & 0.4 \\ 
+\hline false & true & 0.6 \\ 
+\hline true & false & 0.01 \\ 
+\hline false & false & 0.99 \\ 
+\hline 
+\end{tabular} 
+\label{tab:twovariablescpt}
+\caption{Conditional probabilities table for variable S with R as its unique parent.}
+\end{table}
+
+If some doubt about the order you should enter probabilities values in a \verb|Factor| still remains, you can print the cpt object in order to get the required ordering. Printing the following cpt,
+
+\begin{verbatim}
+G.cpt = Factor([G, R, S], [0.99,0.01,0.9,0.1,0.8,0.2,0.0,1.0])
+\end{verbatim}
+
+for example, would produce the output
+
+\begin{verbatim}
+Grass Wet  Rain Sprinkler  |
+   true    true    true    |  0,99000
+  false    true    true    |  0,01000
+   true   false    true    |  0,90000
+  false   false    true    |  0,10000
+   true    true   false    |  0,80000
+  false    true   false    |  0,20000
+   true   false   false    |  0,00000
+  false   false   false    |  1,00000
+\end{verbatim}
+
+The precision of probabilities values in printing output can be set by Factor attribute \verb|__precision|. In the above output precision was setted to 5, its default value.
+
+Note that in \verb|pyBayes| flexibility and readability were priorized over other requirements. Thus, one should take care of how things are inputed as incorrect probabilistic models are allowed to be entered and manipulated by the package, though the results can be meaningless. For example, factor objects do not require that values be less or equal than $1.0$, or that probabilities sum up to unity. This has to be maintaned by user. Also, there is no requirement on a variable being part of its own cpt, tough a cpt without the variable itself in definition has no probabilistic meaning. When marginalizing or applying algebric operators over factors, it would often be needed that a factor be normalized in order to remain in agreement with probabilities theory. This can be done by dividing it by the sum of all its values. For example, if we add R and S cpts by 
+\begin{verbatim}
+	new_cpt = R.cpt + S.cpt
+\end{verbatim}
+we end up with the following cpt (print output):
+\begin{verbatim}
+ Rain Sprinkler  |
+ true    true    |  0,60000
+false    true    |  0,81000
+ true   false    |  0,80000
+false   false    |  1,79000
+\end{verbatim}
+
+Clearly, the values in this new cpt do not sum up to unity. A normalized factor can be obtained by divindig it by the sum of its values:
+\begin{verbatim}
+	new_cpt /= new_cpt.z()
+\end{verbatim}
+what produces the following cpt
+\begin{verbatim}
+ Rain Sprinkler  |
+ true    true    |  0,15000
+false    true    |  0,20250
+ true   false    |  0,20000
+false   false    |  0,44750
+\end{verbatim}
+which indeed sum up to $1.0$, as expected.
+
+\subsection{Variable Marginalization}
+
+\begin{verbatim}
+	G.cpt.eliminate_variable(R)
+\end{verbatim}
+
+\begin{verbatim}
+Grass Wet Sprinkler  |
+   true      true    |  1,89000
+  false      true    |  0,11000
+   true     false    |  0,80000
+  false     false    |  1,20000
+\end{verbatim}
+
+
+\subsection{Variable Conditioning}
+
+\begin{verbatim}
+G.cpt.condvar(R,'false')
+\end{verbatim}
+
+\begin{verbatim}
+Grass Wet  Rain Sprinkler  |
+   true   false    true    |  0,90000
+  false   false    true    |  0,10000
+   true   false   false    |  0,00000
+  false   false   false    |  1,00000
+\end{verbatim}
+
+\subsection{Working with Copies}
+
+\begin{verbatim}
+cpt = G.cpt.copy()
+\end{verbatim}
+
+\bibliography{tutorial}
+
+\end{document}

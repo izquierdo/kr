@@ -1,0 +1,1 @@
+this directory contain real data extracted from a review website. It is used in classification examples. The goal is to predict the rate (1-5) given binary features indicating presence/absence of words. The feature set was produced by retaining the N words representative of 80% of the distribution of words in the corpus.
