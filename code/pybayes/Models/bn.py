@@ -2,7 +2,6 @@
 # Bayesian Network Class
 # Copyright 2008 Denis Maua'
 
-from sets import Set
 import locale
 locale.setlocale(locale.LC_NUMERIC, "")
 
