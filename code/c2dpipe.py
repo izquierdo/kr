@@ -7,30 +7,39 @@ import os
 Un programa sencillo para correr c2d en un pipe.
 
 c2d solo puede ejectuarse con un archivo de entrada especificado con
-el parametro -in. Este programa permite utilizar un pipe del la forma `programa | python c2dpipe'
+el parametro -in. Este programa permite utilizar un pipe del la forma
+`programa | python c2dpipe'
 """
 
-def main(args):
+class C2DError(Exception):
+    pass
+
+def run_c2d(cnf, args=[]):
     infile = NamedTemporaryFile(delete=False)
     outfile = infile.name  + ".nnf"
     try:
         fn = infile.name
-        infile.write(sys.stdin.read())
+        infile.write(cnf)
         infile.close()
+        msg = ""
         try:
-            check_call(["./c2d_linux"] + args + ["-in", fn], stdout=PIPE)
-        except (OSError, CalledProcessError), e:
-            print "Error ejecutando c2d:", e
+            p = Popen(["./c2d_linux"] + args + ["-in", fn], stdout=PIPE)
+            msg = p.communicate()[0]
+            return open(outfile).read()
+        except (IOError, OSError), e:
+            raise C2DError(str(e) + ("\n" + msg if msg else ""))
         else:
-            try:
-                print open(outfile).read(),
-            except Exception, e:
-                print "Error abriendo archivo de salida:", e
-            else:
-                os.unlink(outfile)
+            os.unlink(outfile)
     finally:
         os.unlink(infile.name)
+    
 
+def main(args):
+    try:
+        print run_c2d(sys.stdin.read(), args),
+    except (Exception), e:
+        print "Error ejecutando c2d:", e
+    
 
 if __name__ == "__main__":
     main(sys.argv[1:])
