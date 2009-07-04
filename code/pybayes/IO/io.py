@@ -7,7 +7,8 @@
 '''
 
 import csv
-from pyparsing import Word, alphas, nums, ZeroOrMore, OneOrMore, Optional, Suppress, commaSeparatedList, Group, CharsNotIn
+import pyparsing
+from pyparsing import Word, ZeroOrMore, OneOrMore, Optional, Suppress, commaSeparatedList, Group, CharsNotIn, Regex
 
 caps = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ()[]-'"
 lowers = caps.lower()
@@ -16,6 +17,9 @@ empty = "."
 
 def convertIntegers(tokens):
     return int(tokens[0])
+
+def convertReals(tokens):
+    return float(tokens[0])
 
 def trimString(tokens):
     return str(tokens[0]).strip()
@@ -229,20 +233,25 @@ def load_bif(filename):
 	data = f.read()
 
         # basics
-        word = Word(alphas, alphas + nums + "_-")
-        nninteger = Word("123456789", nums).setParseAction(convertIntegers)
-        #nnreal = nninteger 
+        word = Word(pyparsing.alphas, pyparsing.alphas + pyparsing.nums + "_-")
+        nninteger = Word("123456789", pyparsing.nums).setParseAction(convertIntegers)
+        nnreal = Regex("[0-9]+\\.[0-9]+").setParseAction(convertReals)
 
         type_kw = Suppress('type')
         discrete_kw = Suppress('discrete')
         property_kw = Suppress('property')
         network_kw = Suppress('network')
         variable_kw = Suppress('variable')
+        probability_kw = Suppress('probability')
+        table_kw = Suppress('table')
+        default_kw = Suppress('default')
 
         lbrk = Suppress('[')
         rbrk = Suppress(']')
         lbrc = Suppress('{')
         rbrc = Suppress('}')
+        lpar = Suppress('(')
+        rpar = Suppress(')')
         sc = Suppress(';')
 
         # attributes
@@ -252,13 +261,18 @@ def load_bif(filename):
         domain = lbrc + OneOrMore(word.setResultsName("domain", True)) + rbrc
         type = Group(type_kw + discrete_kw + cardinality + domain + sc).setResultsName("type")
 
+        table = (table_kw + OneOrMore(nnreal) + sc).setResultsName("table", True)
+        default = (default_kw + OneOrMore(nnreal) + sc).setResultsName("default", True)
+        entry = (lpar + OneOrMore(word).setResultsName("variables") + rpar +OneOrMore(nnreal).setResultsName("values") + sc).setResultsName("entry", True)
+
+        probability_attribute = table | default | entry
+
         # blocks
+        probability_block_name = lpar + OneOrMore(word).setResultsName("name")  + rpar
+
 	network = network_kw + word.setResultsName("name") + lbrc + ZeroOrMore(property) + rbrc
 	variable = variable_kw + word.setResultsName("name") + lbrc + ZeroOrMore(property) + type + ZeroOrMore(property) + rbrc
-
-#	probability = 'probability' + Word(caps + lowers + digits + '._').setResultsName("name") + '{' + 'type discrete' + '[' + Word(digits).setResultsName("cardinality") + ']' + '{' + OneOrMore(Word(caps + lowers + digits + '._') + Suppress(Optional(' '))).setResultsName("domain") + '};' + '}'
-
-        probability = Word("p")
+	probability = probability_kw + probability_block_name + lbrc + OneOrMore(property | probability_attribute) + rbrc 
 
         # bif
         network = network.setResultsName("network")
@@ -266,6 +280,7 @@ def load_bif(filename):
         probability = probability.setResultsName("probability", True)
 
         bif = network + ZeroOrMore(variable | probability)
+        bif = bif.ignore(cStyleComment).ignore(pyparsing.cppStyleComment).ignore(",").ignore("|")
 
         # parse and load
         parsed = bif.parseString(data)
