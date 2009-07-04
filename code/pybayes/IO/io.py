@@ -7,7 +7,7 @@
 '''
 
 import csv
-from pyparsing import Word, alphas, OneOrMore, Optional, Suppress, commaSeparatedList, Group
+from pyparsing import Word, alphas, nums, ZeroOrMore, OneOrMore, Optional, Suppress, commaSeparatedList, Group, CharsNotIn
 
 caps = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ()[]-'"
 lowers = caps.lower()
@@ -216,14 +216,41 @@ def load_variables(filename):
 
 def load_bif(filename):
 	""" TO-DO: Load bayesian network from BIF file. """
-	from DataStructures.randomvariables import RandomVariable
-	from DataStructures.potencials import Factor
-	from Models.bn import DBN
+	#from DataStructures.randomvariables import RandomVariable
+	#from DataStructures.potencials import Factor
+	#from Models.bn import DBN
+
 	f = open(filename)
 	data = f.read()
-	network = 'network' + Word(caps + lowers + digits + '._').setResultsName("network") + '{' + Word(caps + lowers + digits + '._') + '}'
-	variable = 'variable' + Word(caps + lowers + digits + '._').setResultsName("name") + '{' + 'type discrete' + '[' + Word(digits).setResultsName("cardinality") + ']' + '{' + OneOrMore(Word(caps + lowers + digits + '._') + Suppress(Optional(' '))).setResultsName("domain") + '};' + '}'
-	probability = 'probability' + Word(caps + lowers + digits + '._').setResultsName("name") + '{' + 'type discrete' + '[' + Word(digits).setResultsName("cardinality") + ']' + '{' + OneOrMore(Word(caps + lowers + digits + '._') + Suppress(Optional(' '))).setResultsName("domain") + '};' + '}'
+
+        # basics
+        word = Word(alphas, alphas + nums + "_-")
+        nninteger = Word("123456789", nums)
+        #nnreal = nninteger 
+
+        # attributes
+        property = Group('property' + CharsNotIn(";").setResultsName("value") + ';')
+
+        # blocks
+	network = 'network' + word.setResultsName("name") + '{' + ZeroOrMore(property.setResultsName("property", True)) + '}'
+
+#	variable = 'variable' + Word(caps + lowers + digits + '._').setResultsName("name") + '{' + 'type discrete' + '[' + Word(digits).setResultsName("cardinality") + ']' + '{' + OneOrMore(Word(caps + lowers + digits + '._') + Suppress(Optional(' '))).setResultsName("domain") + '};' + '}'
+#	probability = 'probability' + Word(caps + lowers + digits + '._').setResultsName("name") + '{' + 'type discrete' + '[' + Word(digits).setResultsName("cardinality") + ']' + '{' + OneOrMore(Word(caps + lowers + digits + '._') + Suppress(Optional(' '))).setResultsName("domain") + '};' + '}'
+
+        variable = Word("v")
+        probability = Word("p")
+
+        # bif
+        network = network.setResultsName("network")
+        variable = variable.setResultsName("variable", True)
+        probability = probability.setResultsName("probability", True)
+
+        bif = network + ZeroOrMore(variable | probability)
+
+        # parse and load
+        parsed = bif.parseString(data)
+
+        return parsed
 
 def save_bn_to_fg(bn,filename):
 	" Save DBN to libDAI .fg fileformat "
