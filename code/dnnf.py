@@ -1,3 +1,4 @@
+from collections import defaultdict
 from pprint import pprint
 from pybayes.Models.bn import *
 from pybayes.Graph.graphs import *
@@ -38,8 +39,8 @@ def test():
             
     g = DBN(V,E,name,header)
     
-    print header
-    todnnf(g)
+    g = todnnf(g)
+    mpe = get_mpe(g, {A:'true'})
 
 def test2():
     name = "jcproblem"
@@ -58,14 +59,65 @@ def test2():
     ### Graph Arcs
     E = [(A,B)]
     ### Conditional distributions
-    A.cpt = Factor([A],[0.15,0.85])
-    B.cpt = Factor([B, A], [0.6,0.4,0.05,0.95])
+    A.cpt = Factor([A], [0.3,0.7])
+    B.cpt = Factor([B, A], [0.1,0.9,0.8,0.2])
+    print A.cpt
+    print B.cpt
     g = DBN(V,E,name,header)
     
     # print header
-    todnnf(g)
+    g = todnnf(g)
+    mpe = get_mpe(g, {A:'true'})
 
 
+def get_mpe(g, evidence):
+    print "MPE----------------------------------"
+    print "evidence:", evidence
+    g = g.copy()
+
+    def add_evidence(g, evidence):
+        freevars = []
+        for node, props in g.iteritems():
+            if props[0] =="L2":
+                if props[1][0] in evidence:
+                    if props[1][1] == evidence[props[1][0]]:
+                        g[node] = ("Le", 1.0)
+                    else:
+                        g[node] = ("Le", 0.0)
+                else:
+                    if props[1][0] not in freevars:
+                        freevars.append(props[1][0])
+
+        return freevars
+
+    def doeval(g, root):
+        nodet = g[root][0]
+        if nodet[0] == "O":
+            r = 0
+            for child in g[root][1]:
+                r += doeval(g, child)
+            return r
+        elif nodet[0] == "A":
+            r = 1
+            for child in g[root][1]:
+                r *= doeval(g, child)
+            return r
+        elif nodet[0].startswith("L"):
+            return g[root][1]
+
+        assert 0
+        
+    freevars = add_evidence(g, evidence)
+    for m in Combination(freevars):
+        g2 = g.copy()
+        inst = dict(zip(freevars, m))
+        add_evidence(g2, inst)
+        p = doeval(g2, max(g2.keys()))
+        print inst, p
+    # for node, props in g.iteritems():
+    #     print node, props
+
+        
 def todnnf(dbn):
     parents = find_parents(dbn.G)
     lambdas = {}
@@ -80,13 +132,19 @@ def todnnf(dbn):
 
         p = parents.get(var)
         if p is not None:
-            domain = var.cpt.domain()
+            #domain = var.cpt.domain()
             # selfindex = domain.index(var)
             # print var, p, var.cpt.domain(), selfindex
             for m in Combination(var.cpt.domain()):
                 thetas[var, tuple(m)] = varcount
                 varcount += 1
+        else:
+            for m in Combination(var.cpt.domain()):
+                thetas[var, tuple(m)] = varcount
+                varcount += 1
 
+    # print lambdas
+    # print thetas
 
     clauses = []
     for var in dbn.V:
@@ -105,10 +163,77 @@ def todnnf(dbn):
             
     cnf = "p cnf %s %s\n" % (varcount-1, len(clauses))
     cnf += "\n".join(" ".join(str(y) for y in x) for x in clauses)
-    nnf = run_c2d(cnf)
-    print nnf
-    return nnf
+    nnf = run_c2d(cnf, [])
 
+    nnf = nnf.split("\n")
+    nnf = [[x.split()[0]]+ map(int, x.split()[1:]) for x in nnf if x.strip()]
+    header = nnf.pop(0)
+    assert header[0] == "nnf"
+    g = defaultdict(set)
+    index = 0
+
+
+    vv = {}
+    for var, value in lambdas:
+        vv[lambdas[var,value]] = ("lambda", var, value)
+        
+    for var, inst in thetas:
+        vv[thetas[var,inst]] = ("theta", var, inst)
+    # print vv
+
+    for node in nnf:
+        ntype = node.pop(0)
+        if ntype == "L":
+            if node[0] < 0:
+                g[index] = ('L1', 1.0)
+            else:
+                var = vv[node[0]]
+                if var[0] == "lambda":
+                    g[index] = ('L2', var[1:])
+                if var[0] == "theta":
+                    #g[index] = ('L3', var[1].cpt[list(var[2])], var[1:])
+                    g[index] = ('L3', var[1].cpt[list(var[2])])
+        elif ntype == "O":
+            children = node[2:]
+            assert len(children) == node[1]
+            g[index] = ('O', children)
+        elif ntype == "A":
+            children = node[1:]
+            assert len(children) == node[0]
+            g[index] = ('A', children)
+            
+        index += 1
+        
+    g = dict(g)
+    for x in g:
+        print x, g[x]
+        
+
+    # print to_dot(g)
+    return g
+
+
+def to_dot(g):
+    s = ["digraph g {"]
+    for node, props in g.iteritems():
+        if props[0] in ["L1", "L3"]:
+            s.append('n%d [label="%s"]' % (node, props[1]))
+        elif props[0] == "L2":
+            s.append('n%d [label="%s=%s"]' % (node, props[1][0], props[1][1]))
+        elif props[0] == "O":
+            s.append('n%d [label="+"]' % node)
+            for child in props[1]:
+                s.append("n%d -> n%d" % (node, child))
+        elif props[0] == "A":
+            s.append('n%d [label="*"]' % node)
+            for child in props[1]:
+                s.append("n%d -> n%d" % (node, child))
+        else:
+            raise Exception("tipo de nodo desconocido")
+    s.append("}")
+    return "\n".join(s)
+
+    
 
 if __name__ == "__main__":
     test2()
