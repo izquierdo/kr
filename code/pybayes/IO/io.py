@@ -229,9 +229,6 @@ def load_bif(filename):
 	#from DataStructures.potencials import Factor
 	#from Models.bn import DBN
 
-	f = open(filename)
-	data = f.read()
-
         # basics
         word = Word(pyparsing.alphas, pyparsing.alphas + pyparsing.nums + "_-")
         nninteger = Word("123456789", pyparsing.nums).setParseAction(convertIntegers)
@@ -265,14 +262,12 @@ def load_bif(filename):
         default = (default_kw + OneOrMore(nnreal) + sc).setResultsName("default", True)
         entry = (lpar + OneOrMore(word).setResultsName("variables") + rpar +OneOrMore(nnreal).setResultsName("values") + sc).setResultsName("entry", True)
 
-        probability_attribute = table | default | entry
-
         # blocks
         probability_block_name = lpar + OneOrMore(word).setResultsName("name")  + rpar
 
 	network = network_kw + word.setResultsName("name") + lbrc + ZeroOrMore(property) + rbrc
 	variable = variable_kw + word.setResultsName("name") + lbrc + ZeroOrMore(property) + type + ZeroOrMore(property) + rbrc
-	probability = probability_kw + probability_block_name + lbrc + OneOrMore(property | probability_attribute) + rbrc 
+	probability = probability_kw + probability_block_name + lbrc + OneOrMore(property | table | default | entry) + rbrc 
 
         # bif
         network = network.setResultsName("network")
@@ -280,10 +275,10 @@ def load_bif(filename):
         probability = probability.setResultsName("probability", True)
 
         bif = network + ZeroOrMore(variable | probability)
-        bif = bif.ignore(cStyleComment).ignore(pyparsing.cppStyleComment).ignore(",").ignore("|")
+        bif = bif.ignore(pyparsing.cStyleComment).ignore(pyparsing.cppStyleComment).ignore(",").ignore("|")
 
         # parse and load
-        parsed = bif.parseString(data)
+        parsed = bif.parseString(open(filename).read())
 
         return parsed
 
