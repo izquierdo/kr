@@ -14,6 +14,11 @@ lowers = caps.lower()
 digits = "0123456789"
 empty = "."
 
+def convertIntegers(tokens):
+    return int(tokens[0])
+
+def trimString(tokens):
+    return str(tokens[0]).strip()
 
 def load_csv(filename,verbose=False):
 	"""Load a Comma Separated File into a list of lists. Each line is a list of
@@ -225,19 +230,34 @@ def load_bif(filename):
 
         # basics
         word = Word(alphas, alphas + nums + "_-")
-        nninteger = Word("123456789", nums)
+        nninteger = Word("123456789", nums).setParseAction(convertIntegers)
         #nnreal = nninteger 
 
+        type_kw = Suppress('type')
+        discrete_kw = Suppress('discrete')
+        property_kw = Suppress('property')
+        network_kw = Suppress('network')
+        variable_kw = Suppress('variable')
+
+        lbrk = Suppress('[')
+        rbrk = Suppress(']')
+        lbrc = Suppress('{')
+        rbrc = Suppress('}')
+        sc = Suppress(';')
+
         # attributes
-        property = Group('property' + CharsNotIn(";").setResultsName("value") + ';')
+        property = property_kw + CharsNotIn(";").setParseAction(trimString).setResultsName("property", True) + sc
+
+        cardinality = lbrk + nninteger.setResultsName("cardinality") + rbrk
+        domain = lbrc + OneOrMore(word.setResultsName("domain", True)) + rbrc
+        type = Group(type_kw + discrete_kw + cardinality + domain + sc).setResultsName("type")
 
         # blocks
-	network = 'network' + word.setResultsName("name") + '{' + ZeroOrMore(property.setResultsName("property", True)) + '}'
+	network = network_kw + word.setResultsName("name") + lbrc + ZeroOrMore(property) + rbrc
+	variable = variable_kw + word.setResultsName("name") + lbrc + ZeroOrMore(property) + type + ZeroOrMore(property) + rbrc
 
-#	variable = 'variable' + Word(caps + lowers + digits + '._').setResultsName("name") + '{' + 'type discrete' + '[' + Word(digits).setResultsName("cardinality") + ']' + '{' + OneOrMore(Word(caps + lowers + digits + '._') + Suppress(Optional(' '))).setResultsName("domain") + '};' + '}'
 #	probability = 'probability' + Word(caps + lowers + digits + '._').setResultsName("name") + '{' + 'type discrete' + '[' + Word(digits).setResultsName("cardinality") + ']' + '{' + OneOrMore(Word(caps + lowers + digits + '._') + Suppress(Optional(' '))).setResultsName("domain") + '};' + '}'
 
-        variable = Word("v")
         probability = Word("p")
 
         # bif
