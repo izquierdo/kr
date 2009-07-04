@@ -7,13 +7,22 @@
 '''
 
 import csv
-from pyparsing import Word, alphas, OneOrMore, Optional, Suppress, commaSeparatedList, Group
+import pyparsing
+from pyparsing import Word, ZeroOrMore, OneOrMore, Optional, Suppress, commaSeparatedList, Group, CharsNotIn, Regex
 
 caps = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ()[]-'"
 lowers = caps.lower()
 digits = "0123456789"
 empty = "."
 
+def convertIntegers(tokens):
+    return int(tokens[0])
+
+def convertReals(tokens):
+    return float(tokens[0])
+
+def trimString(tokens):
+    return str(tokens[0]).strip()
 
 def load_csv(filename,verbose=False):
 	"""Load a Comma Separated File into a list of lists. Each line is a list of
@@ -216,14 +225,67 @@ def load_variables(filename):
 
 def load_bif(filename):
 	""" TO-DO: Load bayesian network from BIF file. """
-	from DataStructures.randomvariables import RandomVariable
-	from DataStructures.potencials import Factor
-	from Models.bn import DBN
+	#from DataStructures.randomvariables import RandomVariable
+	#from DataStructures.potencials import Factor
+	#from Models.bn import DBN
+
 	f = open(filename)
 	data = f.read()
-	network = 'network' + Word(caps + lowers + digits + '._').setResultsName("network") + '{' + Word(caps + lowers + digits + '._') + '}'
-	variable = 'variable' + Word(caps + lowers + digits + '._').setResultsName("name") + '{' + 'type discrete' + '[' + Word(digits).setResultsName("cardinality") + ']' + '{' + OneOrMore(Word(caps + lowers + digits + '._') + Suppress(Optional(' '))).setResultsName("domain") + '};' + '}'
-	probability = 'probability' + Word(caps + lowers + digits + '._').setResultsName("name") + '{' + 'type discrete' + '[' + Word(digits).setResultsName("cardinality") + ']' + '{' + OneOrMore(Word(caps + lowers + digits + '._') + Suppress(Optional(' '))).setResultsName("domain") + '};' + '}'
+
+        # basics
+        word = Word(pyparsing.alphas, pyparsing.alphas + pyparsing.nums + "_-")
+        nninteger = Word("123456789", pyparsing.nums).setParseAction(convertIntegers)
+        nnreal = Regex("[0-9]+\\.[0-9]+").setParseAction(convertReals)
+
+        type_kw = Suppress('type')
+        discrete_kw = Suppress('discrete')
+        property_kw = Suppress('property')
+        network_kw = Suppress('network')
+        variable_kw = Suppress('variable')
+        probability_kw = Suppress('probability')
+        table_kw = Suppress('table')
+        default_kw = Suppress('default')
+
+        lbrk = Suppress('[')
+        rbrk = Suppress(']')
+        lbrc = Suppress('{')
+        rbrc = Suppress('}')
+        lpar = Suppress('(')
+        rpar = Suppress(')')
+        sc = Suppress(';')
+
+        # attributes
+        property = property_kw + CharsNotIn(";").setParseAction(trimString).setResultsName("property", True) + sc
+
+        cardinality = lbrk + nninteger.setResultsName("cardinality") + rbrk
+        domain = lbrc + OneOrMore(word.setResultsName("domain", True)) + rbrc
+        type = Group(type_kw + discrete_kw + cardinality + domain + sc).setResultsName("type")
+
+        table = (table_kw + OneOrMore(nnreal) + sc).setResultsName("table", True)
+        default = (default_kw + OneOrMore(nnreal) + sc).setResultsName("default", True)
+        entry = (lpar + OneOrMore(word).setResultsName("variables") + rpar +OneOrMore(nnreal).setResultsName("values") + sc).setResultsName("entry", True)
+
+        probability_attribute = table | default | entry
+
+        # blocks
+        probability_block_name = lpar + OneOrMore(word).setResultsName("name")  + rpar
+
+	network = network_kw + word.setResultsName("name") + lbrc + ZeroOrMore(property) + rbrc
+	variable = variable_kw + word.setResultsName("name") + lbrc + ZeroOrMore(property) + type + ZeroOrMore(property) + rbrc
+	probability = probability_kw + probability_block_name + lbrc + OneOrMore(property | probability_attribute) + rbrc 
+
+        # bif
+        network = network.setResultsName("network")
+        variable = variable.setResultsName("variable", True)
+        probability = probability.setResultsName("probability", True)
+
+        bif = network + ZeroOrMore(variable | probability)
+        bif = bif.ignore(cStyleComment).ignore(pyparsing.cppStyleComment).ignore(",").ignore("|")
+
+        # parse and load
+        parsed = bif.parseString(data)
+
+        return parsed
 
 def save_bn_to_fg(bn,filename):
 	" Save DBN to libDAI .fg fileformat "
