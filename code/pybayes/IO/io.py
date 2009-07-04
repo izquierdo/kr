@@ -234,6 +234,8 @@ def load_bif(filename):
         nninteger = Word("123456789", pyparsing.nums).setParseAction(convertIntegers)
         nnreal = Regex("[0-9]+\\.[0-9]+").setParseAction(convertReals)
 
+        number = Regex("[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?").setParseAction(convertReals)
+
         type_kw = Suppress('type')
         discrete_kw = Suppress('discrete')
         property_kw = Suppress('property')
@@ -258,9 +260,9 @@ def load_bif(filename):
         domain = lbrc + OneOrMore(word.setResultsName("domain", True)) + rbrc
         type = Group(type_kw + discrete_kw + cardinality + domain + sc).setResultsName("type")
 
-        table = (table_kw + OneOrMore(nnreal) + sc).setResultsName("table", True)
-        default = (default_kw + OneOrMore(nnreal) + sc).setResultsName("default", True)
-        entry = (lpar + OneOrMore(word).setResultsName("variables") + rpar +OneOrMore(nnreal).setResultsName("values") + sc).setResultsName("entry", True)
+        table = (table_kw + OneOrMore(number) + sc).setResultsName("table", True)
+        default = (default_kw + OneOrMore(number) + sc).setResultsName("default", True)
+        entry = (lpar + OneOrMore(word).setResultsName("variables") + rpar +OneOrMore(number).setResultsName("values") + sc).setResultsName("entry", True)
 
         # blocks
         probability_block_name = lpar + OneOrMore(word).setResultsName("name")  + rpar
