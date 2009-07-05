@@ -225,9 +225,9 @@ def load_variables(filename):
 
 def load_bif(filename):
 	""" TO-DO: Load bayesian network from BIF file. """
-	#from DataStructures.randomvariables import RandomVariable
-	#from DataStructures.potencials import Factor
-	#from Models.bn import DBN
+	from pybayes.DataStructures.randomvariables import RandomVariable
+	from pybayes.DataStructures.potencials import Factor
+	from pybayes.Models.bn import DBN
 
         # basics
         word = Word(pyparsing.alphas, pyparsing.alphas + pyparsing.nums + "_-")
@@ -277,12 +277,35 @@ def load_bif(filename):
         probability = probability.setResultsName("probability", True)
 
         bif = network + ZeroOrMore(variable | probability)
-        bif = bif.ignore(pyparsing.cStyleComment).ignore(pyparsing.cppStyleComment).ignore(",").ignore("|")
+        bif = bif.ignore(pyparsing.cStyleComment).ignore(pyparsing.cppStyleComment).ignore(",").ignore("|").ignore('"')
 
         # parse and load
-        parsed = bif.parseString(open(filename).read())
+        P = bif.parseString(open(filename).read())
 
-        return parsed
+        V = []
+        E = []
+
+        varNames = {}
+
+        #nodes
+        for v in P.variable:
+            rv = RandomVariable(v.name, v.type.domain)
+            varNames[v.name] = rv
+            V.append(rv)
+
+        #arcs
+        for p in P.probability:
+            resto = p.name[1:]
+
+            for pp in resto:
+                E.append((varNames[pp],varNames[p.name[0]]))
+
+        print E
+        #cpt
+
+        g = DBN(V,E,P.network.name,"")
+
+        return g
 
 def save_bn_to_fg(bn,filename):
 	" Save DBN to libDAI .fg fileformat "
