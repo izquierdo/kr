@@ -15,6 +15,13 @@ lowers = caps.lower()
 digits = "0123456789"
 empty = "."
 
+def dec2bin(dec, pad):
+    bin = ''
+    while dec > 0:
+        bin = str(dec & 1) + bin
+        dec >>= 1
+    return bin.zfill(pad)
+
 def convertIntegers(tokens):
     return int(tokens[0])
 
@@ -300,10 +307,25 @@ def load_bif(filename):
             for pp in resto:
                 E.append((varNames[pp],varNames[p.name[0]]))
 
-        print E
         #cpt
+        for p in P.probability:
+            l = [varNames[s] for s in p.name]
 
-        g = DBN(V,E,P.network.name,"")
+            cpt = []
+
+            for i in range(0,len(p.table[0])):
+                cpt.append(0)
+
+            idx = 0
+            for e in p.table[0]:
+                nidx = int(dec2bin(idx,len(l))[::-1], 2)
+                cpt[nidx] = e
+                idx = idx+1
+
+            current = varNames[p.name[0]]
+            current.cpt = Factor(l, cpt)
+
+        g = DBN(V,E,P.network.name,"loaded from .bif file")
 
         return g
 
