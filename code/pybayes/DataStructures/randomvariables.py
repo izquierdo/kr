@@ -12,6 +12,9 @@ class RandomVariable:
 		self.Domain = tuple(domain)
 		self.cpt = None
 
+        def domain(self):
+            return list(self.Domain)
+
 	def __getitem__(self,value):
 		return self.Domain[value]
 

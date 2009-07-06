@@ -37,10 +37,26 @@ def split(bn, node, Z):
             else:
                 E.append((old2new[parent], old2new[child]))
 
-    # TODO: aqui hay que calcular los CPTs.
-    for var in V:
-        #var.cpt = Factor(...)
-        pass
+    # calcular los CPTs
+
+    # para cada variable no afectada por el split + variable papa: copiar cpts
+    for v in bn.V:
+        if not (v in Z):
+            old2new[v].cpt = Factor([old2new[e] for e in v.cpt.domain()], v.cpt.getfunction())
+
+    # para la variable creada por el split: cpt uniforme
+    newnode.cpt = Factor([newnode], [1.0/len(newnode.domain()) for e in newnode.domain()])
+
+    # para cada variable hijo afectada por el split: cpt igual a anterior, pero
+    # con lista de papas cambiada
+    def cp(e):
+        if e == node:
+            return newnode
+
+        return old2new[e]
+
+    for v in Z:
+        old2new[v].cpt = Factor([cp(e) for e in v.cpt.domain()], v.cpt.getfunction())
     
     name = bn.name + " splitted"
     return DBN(V,E,name,"")
@@ -53,5 +69,7 @@ if __name__=="__main__":
     
     print g.V
     # print g.G
+
+    print g
 
     print split(g, g.V[0], [g.V[3]])
