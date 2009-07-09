@@ -72,58 +72,75 @@ def find_mpe(fbn, sbn, compat, beta, e):
     fbn: red completa
     sbn: red splitted
     compat: lista de compatibilidades en sbn. Debe ser un diccionario de
-            de variables de sbn en lista de variables de sbn. (TODO: cambiar por UnionFind)
+            de variables de sbn en lista de variables de sbn.
+    beta: beta sbn
     e: evidencia
     """
-    # variables que hay que asignar
-    fvars = dict((v.name, v) for v in fbn.V)
-    svars = dict((v.name, v) for v in sbn.V)
+    evars = set(e)
+    freevars = [v for v in fbn.V if v.name not in evars]
 
-    freevars = {}
-    for varname, var in fvars.iteritems():
-        if varname not in e:
-            freevars[varname] = (var, svars[varname], var.Domain)
+    # para instanaciar las variables splitted primero. Ver popsition 1
+    # del paper
+    freevars.sort(key=lambda x: x.name in compat)    
+    
+    ac = dnnf.todnnf(sbn)    
+    def dfs(q, varsleft, z, k):
+        """
+        q: cota actual
+        varsleft: variables que faltan por instanciar. Se sacan del final.
+        z: instanciacion parcial actual
+        k: numero de variables splitted que falta por instanciar
+        """
+        var = varsleft.pop()
+        varname = var.name
+        domain = var.Domain
+        k -= 1
+        clones = []
+        if varname in compat:
+            for clone in compat[varname]:
+                clones.append(clone)
 
-    ac = dnnf.todnnf(sbn)
+        # probar todos sus posibles valores
+        for value in domain:
+            # agregar ese valor a la instancia parcial
+            z[varname] = value
+            for clone in clones:
+                z[clone] = value
+            p = ac.mpe(z)
 
-    inst = {}
-    ee = dict((fvars[name], value) for name, value in e.iteritems())
-    def dfs(alpha, varsleft):
-        if not varsleft:
-            xx = dict((fvars[name], value) for name, value in inst.iteritems())
-            ##ee = dict((fvars[name], value) for name, value in e.iteritems())
-            xx.update(ee)
-            alpha = max(alpha, fbn.inference(xx, {}).z())
-            # print "hojas", alpha
-        else:
-            varname = varsleft.pop()
-            domain = freevars[varname][2]
-
-            # probar todos sus posibles valores
-            for value in domain:
-                inst[varname] = value
-
-                # instanciar las variables que tienen que ser compatibles:
-                xx = inst.copy()
-                xx.update(e)
-                for parent, clones in compat.iteritems():
-                    if parent in inst:
-                        for clone in clones:
-                            xx[clone] = inst[parent]
-                            
-                p, i = ac.mpe(xx, False)
-                if p*beta <= alpha:
-                    continue
+            if varsleft:
+                # si todavia quedan variables por asignar
+                # hacer prune si podemos
+                
+                if k<=0:
+                    # ya todas las variables splitted estan
+                    # asignadas. Ahora el MPE(sbn) = MPE(fbn), no hace
+                    # falta hacer mas asignaciones para obtener el
+                    # valor exacto (Proposicion 1 del paper)
+                    print z, beta*p
+                    q = max(q, beta*p)
                 else:
-                    alpha = max(alpha, dfs(alpha, varsleft))
+                    if p*beta <= q:
+                        # la cota superior sobre sbc es menor que la
+                        # cota inferior q que llevamos. Por aqui no
+                        # hay nada mejor
+                        continue
+                    else:
+                        # todavia puede haber algo bueno por aqui
+                        q = max(q, dfs(q, varsleft, z, k))
+            else:
+                # si no queda ninguna variable por asignar.
+                # por un teorema, el MPE(fbn, x) == beta*MPE(sbn, x)
+                q = max(q, beta*p)
 
-            # regresar todo al estado orignal
-            varsleft.append(varname)
-            del inst[varname]
-        return alpha
+        # regresar todo al estado orignal
+        varsleft.append(var)
+        del z[varname]
+        for clone in clones:
+            del z[clone]
+        return q
 
-    p = dfs(0.0, freevars.keys())
-    print p
+    return dfs(0.0, freevars, e, len(compat))
 
 if __name__=="__main__":
     import pybayes.IO.io
@@ -132,11 +149,14 @@ if __name__=="__main__":
 
     g2, newnode = split(g1, g1.V[0], [g1.V[3]])
     compat = {}
+    print "split on", g1.V[0].name
     compat[g1.V[0].name] = [newnode.name]
     
     ac1 = dnnf.todnnf(g1)
     ac2 = dnnf.todnnf(g2)
 
-    print "ac1", ac1.mpe()
-    print "ac2", ac2.mpe()
-    find_mpe(g1, g2, compat, 2, {})
+    e = {'hear_bark': 'true'}
+    e = {}
+    print "ac1", ac1.mpe(e)
+    print "ac2", ac2.mpe(e)
+    print "MPE BB:", find_mpe(g1, g2, compat, 2, e)
