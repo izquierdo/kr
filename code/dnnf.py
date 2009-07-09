@@ -1,4 +1,4 @@
-from collections import defaultdict
+from collections import defaultdict, deque
 from pprint import pprint
 from pybayes.Models.bn import *
 from pybayes.Graph.graphs import *
@@ -31,7 +31,7 @@ def test2():
     # print header
     d = todnnf(g)
     print g.inference({A:'false', B:'true'}, {})
-    print d.mpe({})
+    print d.mpe({}, True)
 
 
 
@@ -58,7 +58,8 @@ class Circuit(object):
             else:
                 self.nodes.append([nodetype, children])
 
-    def mpe(self, e):
+
+    def mpe(self, e={}, getinstance=False):
         def varvalue(var, value):
             if var not in e:
                 return 1.0
@@ -74,33 +75,56 @@ class Circuit(object):
                     probs.append(children[0])
                 else:
                     probs.append(varvalue(children[0], children[1]))
-                print i, "L", probs[-1]
+                # print i, "L", probs[-1]
 
             elif nodetype == "A":
-                print i, "  A (*)", 
+                # print i, "  A (*)", 
                 p = 1
                 assert children[0] > 0, "nodo AND sin hijos"
                 # children[1:] por el primer elemento es el numero de hijos
                 for child in children[1:]:
                     p *= probs[child]
-                    print probs[child],
-                print "->", p
+                #     print probs[child],
+                # print "->", p
                 probs.append(p)
 
             elif nodetype == "O":
                 assert children[0] > 0 and children[1] == 2, "nodo OR con propiedades extranas. Ver manual de c2d"
                 p = -1
-                print i, "  O (max)",
+                # print i, "  O (max)",
                 # children[2:] por el segundo elemento es el numero de hijos
                 for child in children[2:]:
                     p = max(p, probs[child])
-                    print probs[child],
-                print "->", p
+                #     print probs[child],
+                # print "->", p
                 probs.append(p)
             else:
                 raise Exception("nodo desconocido")
 
-        return probs[-1]
+
+        instance = None
+        if getinstance:
+            instance = e.copy()
+            s = deque()
+            s.append(len(self.nodes)-1)
+            while s:
+                i = s.popleft()
+                nodetype, children = self.nodes[i]
+                if nodetype == "O":
+                    for child in children[2:]:
+                        if probs[child] == probs[i]:
+                            s.append(child)
+                            break
+                elif nodetype == "A":
+                    s.extend(children[1:])
+                elif nodetype == "L":
+                    if len(children) > 1:
+                        instance[children[0]] = children[1]
+
+
+        # TODO: dividir probs[-1] por Pr(e)
+
+        return probs[-1], instance
 
     def __str__(self):
         l = []
