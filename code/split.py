@@ -5,6 +5,7 @@ from pybayes.Graph.graphs import *
 from pybayes.Combinatorics.combinatorial import Combination
 from c2dpipe import run_c2d
 import copy
+import dnnf
 
 
 def split(bn, node, Z):
@@ -59,17 +60,83 @@ def split(bn, node, Z):
         old2new[v].cpt = Factor([cp(e) for e in v.cpt.domain()], v.cpt.getfunction())
     
     name = bn.name + " splitted"
-    return DBN(V,E,name,"")
+    beta = 1
+    return DBN(V,E,name,""), newnode
+
+
+def find_mpe(fbn, sbn, compat, beta, e):
+    """
+    Hallar el mpe de fbn (full bayesian network) utilizando sbn
+    (splitted bayesian network) como heuristica.
+
+    fbn: red completa
+    sbn: red splitted
+    compat: lista de compatibilidades en sbn. Debe ser un diccionario de
+            de variables de sbn en lista de variables de sbn. (TODO: cambiar por UnionFind)
+    e: evidencia
+    """
+    # variables que hay que asignar
+    fvars = dict((v.name, v) for v in fbn.V)
+    svars = dict((v.name, v) for v in sbn.V)
+
+    freevars = {}
+    for varname, var in fvars.iteritems():
+        if varname not in e:
+            freevars[varname] = (var, svars[varname], var.Domain)
+
+    ac = dnnf.todnnf(sbn)
+
+    inst = {}
+    ee = dict((fvars[name], value) for name, value in e.iteritems())
+    def dfs(alpha, varsleft):
+        if not varsleft:
+            xx = dict((fvars[name], value) for name, value in inst.iteritems())
+            ##ee = dict((fvars[name], value) for name, value in e.iteritems())
+            xx.update(ee)
+            alpha = max(alpha, fbn.inference(xx, {}).z())
+            # print "hojas", alpha
+        else:
+            varname = varsleft.pop()
+            domain = freevars[varname][2]
+
+            # probar todos sus posibles valores
+            for value in domain:
+                inst[varname] = value
+
+                # instanciar las variables que tienen que ser compatibles:
+                xx = inst.copy()
+                xx.update(e)
+                for parent, clones in compat.iteritems():
+                    if parent in inst:
+                        for clone in clones:
+                            xx[clone] = inst[parent]
+                            
+                p, i = ac.mpe(xx, False)
+                if p*beta <= alpha:
+                    continue
+                else:
+                    alpha = max(alpha, dfs(alpha, varsleft))
+
+            # regresar todo al estado orignal
+            varsleft.append(varname)
+            del inst[varname]
+        return alpha
+
+    p = dfs(0.0, freevars.keys())
+    print p
 
 if __name__=="__main__":
     import pybayes.IO.io
-    g = pybayes.IO.io.load_bif("dog-problem.bif")
-    # for x,y in g.G.iteritems():
-    #     print x,y
+    g1 = pybayes.IO.io.load_bif("dog-problem.bif")
+
+
+    g2, newnode = split(g1, g1.V[0], [g1.V[3]])
+    compat = {}
+    compat[g1.V[0].name] = [newnode.name]
     
-    print g.V
-    # print g.G
+    ac1 = dnnf.todnnf(g1)
+    ac2 = dnnf.todnnf(g2)
 
-    print g
-
-    print split(g, g.V[0], [g.V[3]])
+    print "ac1", ac1.mpe()
+    print "ac2", ac2.mpe()
+    find_mpe(g1, g2, compat, 2, {})
