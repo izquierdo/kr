@@ -69,6 +69,13 @@ class Circuit(object):
                 return 0.0
 
         probs = []
+        # esto recorre el arbol desde las hojas hata la raiz,
+        # propagando las probabilidades hacia arriba de la siguiente
+        # manera:
+        #  - En los nodos OR calcula el maximo de todos los hijos
+        #  - En los nodos AND calcual el producto de todos los hijos
+        # Haciendo esto al llegar a la raiz tenemos el MPE
+        
         for i, (nodetype, children) in enumerate(self.nodes):
             if nodetype == "L":
                 if len(children) == 1:
@@ -104,7 +111,22 @@ class Circuit(object):
 
         instance = None
         if getinstance:
-            instance = e.copy()
+            # para recuperar la instancia mas probable recorremos el
+            # arbol partiendo de la raiz de la siguiente manera:
+            #
+            # - En los nodos OR seguimos descendiendo por el hijo que
+            #   tenga la misma probabilidad que el nodo actual. Es
+            #   decir, en los nodos OR buscamos el hijo con maxima
+            #   probabilidad (que es precisamente la probabilidad del
+            #   nodo actual)
+            #
+            # - En los nodos AND descendemos por todos los hijos
+            #
+            # - Agregamos a la instancia resultante las variables con
+            #   la instancia correspondiente a las hojas que se
+            #   visitan
+            
+            instance = {}
             s = deque()
             s.append(len(self.nodes)-1)
             while s:
