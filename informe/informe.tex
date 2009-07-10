@@ -37,12 +37,26 @@
 \newpage
 
 \section{Introducción}
-Este documento presenta una breve descripción de cómo calcular el MPE
+
+El problema MPE (\emph{most probable explanation}) consiste en averiguar, dadas
+una red bayesiana y una evidencia, la instanciación más probable compatible con
+la evidencia. Se ha propuesto \cite{TODOpaperdetraduccionadnnf} una técnica de
+compilación de redes bayesianas a circuitos aritméticos que permite cálculo
+rápido del MPE. Sin embargo, la técnica está limitada a instancias de redes
+pequeñas porque involucra un paso de compilación de una fórmula en CNF a su
+equivalente en d-DNNF que puede tomar mucho tiempo con casos más grandes.
+
+%Por otra parte, Darwiche propone un método para calcular cotas superiores del
+%MPE de redes bayesianas mediante eliminación de arcos
+%\cite{TODOpaperdenodesplitting}. El método, llamado \emph{node splitting},
+%consiste básicamente en remover arcos de un nodo a sus hijos
+
+Este documento presenta una breve descripción de una técnica
+para calcular el MPE
 de una red bayesiana grande utilizando como heurística el MPE de una
 red simplificada que proporciona una cota superior. El cálculo del MPE
-en la red simplificada se calcula utilizando una codificación en un
-circuito aritmético que se obtiene a partir de una compilación a
-d-DNNF.
+en la red simplificada se realiza utilizando una codificación en un
+circuito aritmético.
 
 % Por último se muestra los resultados de una serie de experimentos que
 % se realizaron para probar 
@@ -183,11 +197,34 @@ mejorar el proceso de búsqueda.
 \section{Resultados}
 
 \section{Conclusiones}
-Logical constraints se la fuma
+
+Podemos enumerar varios logros alcanzados en el proyecto. En primer lugar
+verificamos que la técnica de splitting puede influir fuertemente en el tiempo
+de compilación a d-DNNF de fórmulas generadas por una red.
+
+La optimización basada en \emph{logical constraints} demostró su valor al
+reducir enormemente el tiempo de compilación a d-DNNF. En
+\cite{TODOfactoring} se explica que ,. Nosotros pudimos comprobar esa
+afirmación.
 
 Ordenamiento de nodos para instancinar las variables splitted se la fuma.
 
-Pasar el codigo a c++. Implementar el otro tipo de optimizacion
+\section{Trabajo futuro}
+
+Hay una optimización basada en \emph{Context–specific independence} (CSI)
+descrita en
+\cite{TODOfactoring} junto con la optimización de \emph{logical constraints}
+mencionada previamente. En resultados experimentales se ha mostrado que puede
+tener un efecto importante de reducción del tamaño del d-DNNF y del circuito
+aritmético resultantes de la compilación de una red bayesiana. Un paso natural a
+seguir para la continuación de este proyecto es entonces ejecutar CSI sobre las
+fórmulas CNF antes de su compilación con c2d.
+
+Además, proponemos implementar el algoritmo de B\&B sobre la red en el
+lenguaje C y prestando mayor atención a la eficiencia del código. Creemos
+que esto podría generar resultados aún mejores. En particular, pensamos en la
+posibilidad de lograr el objetivo de calcular los MPE con la técnica descrita
+para redes más grandes.
 
 \bibliographystyle{plain}
 \bibliography{informe}
