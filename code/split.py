@@ -4,11 +4,12 @@ from pybayes.Models.bn import *
 from pybayes.Graph.graphs import *
 from pybayes.Combinatorics.combinatorial import Combination
 from c2dpipe import run_c2d
+from datetime import datetime
 import copy
 import dnnf
 
 
-def split(bn, node, Z):
+def split(bn, node, Z=None):
     """
     Hace split de la red bayesiana `bn' en el nodo `node' de acuerdo `Z'
     
@@ -19,6 +20,13 @@ def split(bn, node, Z):
     """
     # no estoy seguro si hace falta crear nuevas variables, pero mas
     # vale prevenir que lamentar
+    for v in bn.V:
+        if v.name == node:
+            node = v
+            break
+    if Z is None:
+        Z = bn.G[node]
+
     V = [RandomVariable(var.name, var.Domain) for var in bn.V]
 
     # mapeo de variables viejas a las nuevas. Sirve mas adelante para
@@ -83,7 +91,10 @@ def find_mpe(fbn, sbn, compat, beta, e):
     # del paper
     freevars.sort(key=lambda x: x.name in compat)    
     
-    ac = dnnf.todnnf(sbn)    
+    t = datetime.now()
+    ac = dnnf.todnnf(sbn)
+    print datetime.now() - t
+    print "dfs", freevars
     def dfs(q, varsleft, z, k):
         """
         q: cota actual
@@ -117,7 +128,6 @@ def find_mpe(fbn, sbn, compat, beta, e):
                     # asignadas. Ahora el MPE(sbn) = MPE(fbn), no hace
                     # falta hacer mas asignaciones para obtener el
                     # valor exacto (Proposicion 1 del paper)
-                    print z, beta*p
                     q = max(q, beta*p)
                 else:
                     if p*beta <= q:
@@ -144,19 +154,22 @@ def find_mpe(fbn, sbn, compat, beta, e):
 
 if __name__=="__main__":
     import pybayes.IO.io
-    g1 = pybayes.IO.io.load_bif("dog-problem.bif")
-
-
-    g2, newnode = split(g1, g1.V[0], [g1.V[3]])
+    g1 = pybayes.IO.io.load_bif("../Grid/Bif/Ratio_50/50-20-1.bif")
+    splits = 100
+    import random
+    g2 = g1
     compat = {}
-    print "split on", g1.V[0].name
-    compat[g1.V[0].name] = [newnode.name]
-    
-    ac1 = dnnf.todnnf(g1)
-    ac2 = dnnf.todnnf(g2)
-
-    e = {'hear_bark': 'true'}
+    for v in random.sample(g1.V, splits):
+        g2, aa = split(g2, v.name, None)
+        compat[v.name] = [v.name+"*"]
+        
+        
+    beta = 2**splits
     e = {}
-    print "ac1", ac1.mpe(e)
-    print "ac2", ac2.mpe(e)
-    print "MPE BB:", find_mpe(g1, g2, compat, 2, e)
+
+    # print "mpe full"
+    # print compat.keys()
+    # acp = ac1.mpe()
+    bbp = find_mpe(g1, g2, compat, beta, e)
+    # print "ac", acp
+    print "bb", bbp
