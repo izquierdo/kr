@@ -62,6 +62,10 @@ class Factor:
 		" Return ordered list of factor variables. "
 		return self.variables
 
+        def getfunction(self):
+                " Return function. "
+                return self.function
+
 	""" Manipulation """
 	def __mul__(self,other):
 		" Multiply two factors "

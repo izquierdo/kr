@@ -140,6 +140,11 @@ class Factor:
 		" Return ordered list of factor variables. "
 		return self.M[0]
 
+        def getfunction(self):
+                " Return function. "
+                return self.M[1:]
+
+
 	""" Membership """
 	def __contains__(self,var):
 		" Check whether variable is in factor domain. "

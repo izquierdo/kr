@@ -1,46 +1,9 @@
-from collections import defaultdict
+from collections import defaultdict, deque
 from pprint import pprint
 from pybayes.Models.bn import *
 from pybayes.Graph.graphs import *
 from pybayes.Combinatorics.combinatorial import Combination
 from c2dpipe import run_c2d
-
-def test():
-    name = "dogproblem"
-    header = \
-    """ The Dog Problem Network
-         F     B
-         |\   /
-         | \ /
-
-         v  v
-         L  D-->H
-
-        Extracted from E. Charniak.
-        Bayesian networks without tears.
-        AI Magazine, 1991. \n """
-
-    F = RandomVariable('family_out',['true','false'])
-    B = RandomVariable('bowel_problem',['true','false'])
-    L = RandomVariable('lights',['on', 'off'])
-    D = RandomVariable('dog_out',['true', 'false'])
-    H = RandomVariable('hear_bark',['true', 'false'])
-    ### Graph Nodes
-    V = [F,B,L,D,H]
-    ### Graph Arcs
-    E = [(F,L), (F,D),
-         (B,D), (D,H)]
-    ### Conditional distributions
-    F.cpt = Factor([F],[0.15,0.85])
-    B.cpt = Factor([B],[0.01,0.99])
-    L.cpt = Factor([L, F], [0.6,0.4,0.05,0.95])
-    D.cpt = Factor([D, F, B], [0.99,0.01,0.97,0.03,0.9,0.1,0.3,0.7])    
-    H.cpt = Factor([H, D], [0.7,0.3,0.01,0.99])
-            
-    g = DBN(V,E,name,header)
-    
-    g = todnnf(g)
-    mpe = get_mpe(g, {A:'true'})
 
 def test2():
     name = "jcproblem"
@@ -60,62 +23,137 @@ def test2():
     E = [(A,B)]
     ### Conditional distributions
     A.cpt = Factor([A], [0.3,0.7])
-    B.cpt = Factor([B, A], [0.1,0.9,0.8,0.2])
-    print A.cpt
-    print B.cpt
+    B.cpt = Factor([B, A], [0.5,0.5,0.8,0.2])
+    # print A.cpt
+    # print B.cpt
     g = DBN(V,E,name,header)
     
     # print header
-    g = todnnf(g)
-    mpe = get_mpe(g, {A:'true'})
+    d = todnnf(g)
+    print g.inference({A:'false', B:'true'}, {})
+    print d.mpe({}, True)
 
 
-def get_mpe(g, evidence):
-    print "MPE----------------------------------"
-    print "evidence:", evidence
-    g = g.copy()
 
-    def add_evidence(g, evidence):
-        freevars = []
-        for node, props in g.iteritems():
-            if props[0] =="L2":
-                if props[1][0] in evidence:
-                    if props[1][1] == evidence[props[1][0]]:
-                        g[node] = ("Le", 1.0)
-                    else:
-                        g[node] = ("Le", 0.0)
-                else:
-                    if props[1][0] not in freevars:
-                        freevars.append(props[1][0])
+class Circuit(object):
+    def __init__(self, nodes, lambdas, thetas):
+        self.nodes = []
+        # self._simplify()
 
-        return freevars
+        # hacer la sustituciones en el dDNNF:
+        # 1. Literales negativos por 1
+        # 2. variables theta por la probabilidad correspondiente
+        for nodetype, children in nodes:
+            if nodetype == "L":
+                var = children[0]
+                if var < 0:
+                    self.nodes.append(["L", [1.0]])
+                elif var in thetas:
+                    V, inst = thetas[var]
+                    p = V.cpt[list(inst)]
+                    self.nodes.append(["L", [p]])
+                elif var in lambdas:
+                    V, value = lambdas[var]
+                    self.nodes.append(["L", [V.name, value]])
+            else:
+                self.nodes.append([nodetype, children])
 
-    def doeval(g, root):
-        nodet = g[root][0]
-        if nodet[0] == "O":
-            r = 0
-            for child in g[root][1]:
-                r += doeval(g, child)
-            return r
-        elif nodet[0] == "A":
-            r = 1
-            for child in g[root][1]:
-                r *= doeval(g, child)
-            return r
-        elif nodet[0].startswith("L"):
-            return g[root][1]
 
-        assert 0
+    def mpe(self, e={}, getinstance=False):
+        def varvalue(var, value):
+            if var not in e:
+                return 1.0
+            elif e[var] == value:
+                return 1.0
+            else:
+                return 0.0
+
+        probs = []
+        # esto recorre el arbol desde las hojas hata la raiz,
+        # propagando las probabilidades hacia arriba de la siguiente
+        # manera:
+        #  - En los nodos OR calcula el maximo de todos los hijos
+        #  - En los nodos AND calcual el producto de todos los hijos
+        # Haciendo esto al llegar a la raiz tenemos el MPE
         
-    freevars = add_evidence(g, evidence)
-    for m in Combination(freevars):
-        g2 = g.copy()
-        inst = dict(zip(freevars, m))
-        add_evidence(g2, inst)
-        p = doeval(g2, max(g2.keys()))
-        print inst, p
-    # for node, props in g.iteritems():
-    #     print node, props
+        for i, (nodetype, children) in enumerate(self.nodes):
+            if nodetype == "L":
+                if len(children) == 1:
+                    probs.append(children[0])
+                else:
+                    probs.append(varvalue(children[0], children[1]))
+                # print i, "L", probs[-1]
+
+            elif nodetype == "A":
+                # print i, "  A (*)", 
+                p = 1
+                assert children[0] > 0, "nodo AND sin hijos"
+                # children[1:] por el primer elemento es el numero de hijos
+                for child in children[1:]:
+                    p *= probs[child]
+                #     print probs[child],
+                # print "->", p
+                probs.append(p)
+
+            elif nodetype == "O":
+                assert children[0] > 0 and children[1] == 2, "nodo OR con propiedades extranas. Ver manual de c2d"
+                p = -1
+                # print i, "  O (max)",
+                # children[2:] por el segundo elemento es el numero de hijos
+                for child in children[2:]:
+                    p = max(p, probs[child])
+                #     print probs[child],
+                # print "->", p
+                probs.append(p)
+            else:
+                raise Exception("nodo desconocido")
+
+
+        instance = None
+        if getinstance:
+            # para recuperar la instancia mas probable recorremos el
+            # arbol partiendo de la raiz de la siguiente manera:
+            #
+            # - En los nodos OR seguimos descendiendo por el hijo que
+            #   tenga la misma probabilidad que el nodo actual. Es
+            #   decir, en los nodos OR buscamos el hijo con maxima
+            #   probabilidad (que es precisamente la probabilidad del
+            #   nodo actual)
+            #
+            # - En los nodos AND descendemos por todos los hijos
+            #
+            # - Agregamos a la instancia resultante las variables con
+            #   la instancia correspondiente a las hojas que se
+            #   visitan
+            
+            instance = {}
+            s = deque()
+            s.append(len(self.nodes)-1)
+            while s:
+                i = s.popleft()
+                nodetype, children = self.nodes[i]
+                if nodetype == "O":
+                    for child in children[2:]:
+                        if probs[child] == probs[i]:
+                            s.append(child)
+                            break
+                elif nodetype == "A":
+                    s.extend(children[1:])
+                elif nodetype == "L":
+                    if len(children) > 1:
+                        instance[children[0]] = children[1]
+
+
+        # TODO: dividir probs[-1] por Pr(e)
+
+        return probs[-1], instance
+
+    def __str__(self):
+        l = []
+        for x, y in self.nodes:
+            l.append("%s: %s" %( x, y))
+        return "\n".join(l)
+        # return "<dDNNF %d nodes>" % len(self.nodes)
 
         
 def todnnf(dbn):
@@ -143,8 +181,11 @@ def todnnf(dbn):
                 thetas[var, tuple(m)] = varcount
                 varcount += 1
 
-    # print lambdas
-    # print thetas
+    # for x in lambdas:
+    #     print "lambda", x, lambdas[x]
+
+    # for x in thetas:
+    #     print "theta", x, thetas[x]
 
     clauses = []
     for var in dbn.V:
@@ -154,16 +195,19 @@ def todnnf(dbn):
             for j in range(i+1, len(domain)):
                 clauses.append([-lambdas[var, domain[i]], -lambdas[var, domain[j]], 0])
 
-    for theta in thetas:
+    for theta, varno in thetas.iteritems():
         var = theta[0]
         u = zip(theta[1], var.cpt.M[0])
-        clauses.append([-lambdas[var2, value2] for (value2, var2) in u] + [thetas[theta], 0])
-        u.pop(0) # esto supne que la primera variable de un CPT es la variable no condicional
-        clauses.extend([-thetas[theta], lambdas[var2, value2], 0] for (value2, var2) in u)
-            
+        clauses.append([-lambdas[var2, value2] for (value2, var2) in u] + [varno, 0])
+        # u.pop(0) # esto supne que la primera variable de un CPT es la variable no condicional
+        clauses.extend([-varno, lambdas[var2, value2], 0] for (value2, var2) in u)
+
+    # for x in clauses:
+    #     print x
+
     cnf = "p cnf %s %s\n" % (varcount-1, len(clauses))
     cnf += "\n".join(" ".join(str(y) for y in x) for x in clauses)
-    nnf = run_c2d(cnf, [])
+    nnf = run_c2d(cnf, ["-smooth", '-reduce'])
 
     nnf = nnf.split("\n")
     nnf = [[x.split()[0]]+ map(int, x.split()[1:]) for x in nnf if x.strip()]
@@ -174,43 +218,55 @@ def todnnf(dbn):
 
 
     vv = {}
+    T = {}
+    L = {}
     for var, value in lambdas:
         vv[lambdas[var,value]] = ("lambda", var, value)
+        L[lambdas[var,value]] = (var, value)
+        
         
     for var, inst in thetas:
         vv[thetas[var,inst]] = ("theta", var, inst)
+        T[thetas[var,inst]] = (var, inst)
+        
     # print vv
 
-    for node in nnf:
-        ntype = node.pop(0)
-        if ntype == "L":
-            if node[0] < 0:
-                g[index] = ('L1', 1.0)
-            else:
-                var = vv[node[0]]
-                if var[0] == "lambda":
-                    g[index] = ('L2', var[1:])
-                if var[0] == "theta":
-                    #g[index] = ('L3', var[1].cpt[list(var[2])], var[1:])
-                    g[index] = ('L3', var[1].cpt[list(var[2])])
-        elif ntype == "O":
-            children = node[2:]
-            assert len(children) == node[1]
-            g[index] = ('O', children)
-        elif ntype == "A":
-            children = node[1:]
-            assert len(children) == node[0]
-            g[index] = ('A', children)
+    l = [[x[0], x[1:]] for x in nnf]
+    d = Circuit(l, L, T)
+
+    return d
+    # print d
+    
+    # for node in nnf:
+    #     ntype = node.pop(0)
+    #     if ntype == "L":
+    #         if node[0] < 0:
+    #             g[index] = ('L1', 1.0)
+    #         else:
+    #             var = vv[node[0]]
+    #             if var[0] == "lambda":
+    #                 g[index] = ('L2', var[1:])
+    #             if var[0] == "theta":
+    #                 #g[index] = ('L3', var[1].cpt[list(var[2])], var[1:])
+    #                 g[index] = ('L3', var[1].cpt[list(var[2])])
+    #     elif ntype == "O":
+    #         children = node[2:]
+    #         assert len(children) == node[1]
+    #         g[index] = ('O', children)
+    #     elif ntype == "A":
+    #         children = node[1:]
+    #         assert len(children) == node[0]
+    #         g[index] = ('A', children)
             
-        index += 1
+    #     index += 1
         
-    g = dict(g)
-    for x in g:
-        print x, g[x]
+    # g = dict(g)
+    # # for x in g:
+    # #     print x, g[x]
         
 
-    # print to_dot(g)
-    return g
+    # # print to_dot(g)
+    # return g
 
 
 def to_dot(g):
@@ -234,6 +290,12 @@ def to_dot(g):
     return "\n".join(s)
 
     
+import pybayes.IO.io
 
 if __name__ == "__main__":
+    # g = pybayes.IO.io.load_bif("dog-problem.bif")
+    # # print g.V
+    # # print get_mpe_naive(g, {g.V[0]: 'true'})
+    # d = todnnf(g)
+    # print to_dot(d)
     test2()

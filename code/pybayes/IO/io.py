@@ -231,7 +231,7 @@ def load_variables(filename):
 		return RV
 
 def load_bif(filename):
-	""" TO-DO: Load bayesian network from BIF file. """
+	"""Load bayesian network from BIF file."""
 	from pybayes.DataStructures.randomvariables import RandomVariable
 	from pybayes.DataStructures.potencials import Factor
 	from pybayes.Models.bn import DBN
