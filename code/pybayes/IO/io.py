@@ -237,7 +237,7 @@ def load_bif(filename):
 	from pybayes.Models.bn import DBN
 
         # basics
-        word = Word(pyparsing.alphas, pyparsing.alphas + pyparsing.nums + "_-")
+        word = Word(pyparsing.alphas + pyparsing.nums + "_-", pyparsing.alphas + pyparsing.nums + "_-")
         nninteger = Word("123456789", pyparsing.nums).setParseAction(convertIntegers)
         nnreal = Regex("[0-9]+\\.[0-9]+").setParseAction(convertReals)
 
@@ -308,6 +308,8 @@ def load_bif(filename):
                 E.append((varNames[pp],varNames[p.name[0]]))
 
         #cpt
+
+        # caso table
         for p in P.probability:
             l = [varNames[s] for s in p.name]
 
