@@ -37,14 +37,152 @@
 \newpage
 
 \section{Introducción}
+Este documento presenta una breve descripción de cómo calcular el MPE
+de una red bayesiana grande utilizando como heurística el MPE de una
+red simplificada que proporciona una cota superior. El cálculo del MPE
+en la red simplificada se calcula utilizando una codificación en un
+circuito aritmético que se obtiene a partir de una compilación a
+d-DNNF.
+
+% Por último se muestra los resultados de una serie de experimentos que
+% se realizaron para probar 
 
 \section{Implementación}
+
+\subsection{Cálculo de MPE utilizando teorías en d-DNNF}
+\label{sec:condificacion}
+Hablar aqui un poquito de las funciones multilineales
+
+La red bayesiana se convirtió a una teoría $\Delta$ en CNF de la
+siguiente forma
+\begin{itemize}
+\item Para cada variable $X$ de la red bayesiana que toma valores
+  $x^1,\dots,x^n$, se agregan a $\Delta$ las siguiente clausulas
+  \begin{align}
+    \lambda_{x^1} \lor \cdots \lor \lambda_{x^n} \label{eq:cnf1} \\
+    \neg\lambda_{x^i} \lor \neg\lambda_{x^j} \quad i\neq j \label{eq:cnf2}
+  \end{align}
+\item Para cada variable $X$ con padres $U$, se crea una variable
+  $\theta_{x|u_1,\dots,u_m}$, $\Delta$
+  contiene:
+  \begin{align}
+    \lambda_{x} \land \lambda_{u_1} \land \cdots \land \lambda_{u_m} \Rightarrow \theta_{x|u_1,\dots,u_m} \label{eq::cnf3}\\
+    \theta_{x|u_1,\dots,u_m} \Rightarrow \lambda_{x}, \;\; \theta_{x|u_1,\dots,u_m} \Rightarrow \lambda_{u_1} ,\;\; \dots \;\;, \theta_{x|u_1,\dots,u_m} \Rightarrow \lambda_{u_m} \label{eq:cnf4}
+  \end{align}
+\end{itemize}
+
+Posteriormente la $\Delta$ se compila a una teoría $\Gamma$
+equivalente en d-DNNF smooth utilizando
+\texttt{c2d}~{\cite{darwicheAAAI02}}. Luego en $\Gamma$ se sustituyen
+las los literales negativos por $1$, las conjunciones por
+multiplicaciones y las disjunciones por sumas. Esta sustitución
+permite hacer inferencia sobre la red bayesiana sustituyendo en
+$\Gamma$ las variables $\theta$ por las probabilidades
+correspondientes y las variables $\lambda_x$ por 1 si $x$ es
+compatible con la evidencia o 0 si es imcompatible~\cite{Darwiche01alogical}.
+
+Esta sustitución produce lo que se conoce como una representación en
+circuito aritmético de la red bayesiana. Este circuito aritmético, al
+evaluarlo de la forma indicada, corresponde a evaluar la función
+multilineal asociado a la red bayesiana.
+
+% Por ejemplo, para una red con variables $A$, $B$ y $C$, la función
+% multilineal asociada es
+% \begin{align}
+%   f & = \lambda_a\lambda_b\lambda_c\
+% \end{align}
+
+Cada sumando en la función multilineal de una red corresponde a la
+probabilidad de una instanciación particular compatible con la
+evidencia. Si sustituimos las sumas por el operador $\max$,
+obtendremos la asignación de variables de máxima para una evidencia,
+es decir, la probabilidad del MPE. Por lo tanto, si en $\Gamma$
+sustituimos las disjunciones por $\max$, entonces podemos calcular el
+MPE de la red utilizando el circuito aritmético.
+
+\subsubsection{Restricciones Lógicas}
+Una restricción lógica es una probabilidad condicional que es igual a
+0 o 1. En cada uno de estos casos se pueden hacer simplificaciones
+sobre $\Delta$ que permiten reducir significativamente el tamaño de la
+teoría compilada en d-DNNF.
+
+Si tenemos una red bayesiana con parámetro $\theta_{x|u_1,\dots,u_m}$
+que toma valor cero, entonces las clausulas \eqref{eq::cnf3} y
+\eqref{eq:cnf4} que involucran a $\theta_{x|u_1,\dots,u_m}$ se pueden sustituir por
+\begin{equation}
+  \label{eq:simpcero}
+  \neg \lambda_{x} \lor \neg \lambda_{u_1} \lor \cdots \lor \neg \lambda_{u_m}
+\end{equation}
+Es decir, que $\theta_{x|u_1,\dots,u_m}$ se puede eliminar de
+$\Delta$. Por otro lado, cuando $\theta_{x|u_1,\dots,u_m}=1$, podemos
+omitir por completo a $\theta_{x|u_1,\dots,u_m}$ y las clausulas que
+la mencionan.
+
+Como se mostrará más adelante, estas simplificaciones tienen un gran
+impacto sobre el tamaño de la teoría comipliada cuando la red bayesiana
+esta compuesta por una gran cantidad de nodos determinísticos.
+
+Existe un segundo tipo de simplificación conocida como
+\textsl{context-specific independence}, sin embargo esta
+simplificación no se implemento para este proyecto.
+
+% \subsubsection{Detalles de implementación}
+% \label{sec:detall-de-impl}
+% Para hacer la traducción a CNF primero se hace un mapeo 
+
+\subsection{Cálculo de MPE para redes grandes}
+\label{sec:calculo-de-mpe}
+Para redes bayesianas con muchos nodos, el paso de compilación a
+d-DNNF que se explicó anteriormente no terminará en una tiempo
+razonable. En este caso utilizamos la técnica de \textsl{node
+  splitting} propuesta en~\cite{ChoiChaviraDarwiche07}.
+
+La idea es tomar la red original y hacer una serie splittings hasta
+que sea posible compilar la red a d-DNNF y luego utilizar el MPE sobre
+esta nueva red (que se puede calcular utilizando el circuito
+aritmético) como heurística para obtener el MPE de la red original.
+
+Este método se basa en el teorema~1 de \cite{ChoiChaviraDarwiche07} el
+cual dice que si $N$ es un red bayesiana y $N'$ es el resultado de
+hacer un splitting en $N$, entonces
+\begin{equation}
+  \label{eq:2}
+  MPE_p(N,\mathbf{e}) \leq \beta MPE_p(N', \mathbf{e}, \vec{\mathbf{e}})
+\end{equation}
+donde $\vec{\mathbf{e}}$ es el conjunto de instanciaciones compatibles con $e$,
+y $\beta = \prod_{C \in \mathbf{C}} |C|$ donde $\mathbf{C}$ es el conjunto de
+clones en $N'$.
+
+Si tenemos una red bayesiana $N'$ que es el resultado de hacer
+splitting sobre la red $N$, entonces el procedimiento para calcular el
+$MPE(N,\mathbf{e})$ utilizando $N'$ se describe a continuación. Se
+tiene una variable $\mathbf{z}$ que representa una asignación parcial
+en $N$ y una segunda variable $q*$ que representa la cota inferior
+actual para el MPE de de $N$. La búsqueda se inicia con $\mathbf{z} =
+\mathbf{e}$ y $q* = 0$. En cada nodo del algoritmo de búsqueda
+computamos $q$, una cota superior para el MPE de $N'$ y la
+instanciación parcial $\mathbf{z}$, esto se puede hacer evaluando el
+circuito aritmético. Si $q>q*$ entonces debemos continuar con la
+búsqueda porque puede ser posible que $z$ se pueda extender para
+conseguir una mejor aproximación que la que ya tenemos. Si $z$ ya
+tiene todas la variables instaciadas, entonces se puede demostrar que
+$Pr(z) = q$ y entonces tenemos una nueva cota. Si $z$ no es una
+instanciación completa, seleccionamos una variable $X$ que no esté
+instanciada y para cada valor $x$ que $X$ puede tomar, agregamos a $z$
+la asignación $\{ X = x \}$ y llamamos al procedimiento recursivamente.
+
+PONER AQUI EL ALGORITMO DE B\&B
+
+Llamemos a $L$ el conjunto de variables de $N$ a las que se le hizo
+split. Un resultado importante de~\cite{ChoiChaviraDarwiche07} es que
+si todas las variables de $L$ están instanciadas entonces $MPE_p(N,
+\mathbf{e}) = MPE_p(N', \mathbf{e}, \vec{\mathbf{e}})$. Como veremos
+más adelante, ordenar los nodos para aprovechar esta propiedad permite
+mejorar el proceso de búsqueda.
 
 \section{Resultados}
 
 \section{Conclusiones}
-
-\section{Trabajos Futuros}
 
 
 \bibliographystyle{plain}
