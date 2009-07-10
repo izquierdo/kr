@@ -109,6 +109,9 @@ class Circuit(object):
                 raise Exception("nodo desconocido")
 
 
+        if not getinstance:
+            return probs[-1]
+
         instance = None
         if getinstance:
             # para recuperar la instancia mas probable recorremos el
@@ -163,6 +166,8 @@ def todnnf(dbn):
     varcount = 1
 
     # crear las variables
+    print "creando variables"
+    clauses = []
     for var in dbn.V:
         for value in var.Domain:
             lambdas[var, value] = varcount
@@ -174,8 +179,13 @@ def todnnf(dbn):
             # selfindex = domain.index(var)
             # print var, p, var.cpt.domain(), selfindex
             for m in Combination(var.cpt.domain()):
-                thetas[var, tuple(m)] = varcount
-                varcount += 1
+                if var.cpt[m] == 1:
+                    continue
+                elif var.cpt[m] == 0:
+                    clauses.append([-lambdas[v, value] for (v, value) in zip(var.cpt.M[0], m)]+ [0])
+                else:
+                    thetas[var, tuple(m)] = varcount
+                    varcount += 1
         else:
             for m in Combination(var.cpt.domain()):
                 thetas[var, tuple(m)] = varcount
@@ -187,7 +197,6 @@ def todnnf(dbn):
     # for x in thetas:
     #     print "theta", x, thetas[x]
 
-    clauses = []
     for var in dbn.V:
         clauses.append([lambdas[var, value] for value in var.Domain] + [0])
         domain = var.Domain
@@ -195,6 +204,7 @@ def todnnf(dbn):
             for j in range(i+1, len(domain)):
                 clauses.append([-lambdas[var, domain[i]], -lambdas[var, domain[j]], 0])
 
+    print "clausulas theta"
     for theta, varno in thetas.iteritems():
         var = theta[0]
         u = zip(theta[1], var.cpt.M[0])
@@ -204,19 +214,31 @@ def todnnf(dbn):
 
     # for x in clauses:
     #     print x
-
+    print "creando archivo"
     cnf = "p cnf %s %s\n" % (varcount-1, len(clauses))
     cnf += "\n".join(" ".join(str(y) for y in x) for x in clauses)
-    nnf = run_c2d(cnf, ["-smooth", '-reduce'])
-
+    print "c2d"
+    nnf = run_c2d(cnf, ["-smooth", "-reduce"])
+    print "parsing"
+    print "  split"
     nnf = nnf.split("\n")
-    nnf = [[x.split()[0]]+ map(int, x.split()[1:]) for x in nnf if x.strip()]
+    print "  lineas (%d)" % len(nnf)
+    nnf2 = []
+    for line in nnf:
+        line = line.strip().split()
+        if not line:
+            continue
+        for i,x in enumerate(line):
+            if i:
+                line[i] = int(x)
+        nnf2.append(line)
+    nnf = nnf2
     header = nnf.pop(0)
     assert header[0] == "nnf"
     g = defaultdict(set)
     index = 0
 
-
+    print "aqui"
     vv = {}
     T = {}
     L = {}
@@ -232,6 +254,7 @@ def todnnf(dbn):
     # print vv
 
     l = [[x[0], x[1:]] for x in nnf]
+    print "creando circuito"
     d = Circuit(l, L, T)
 
     return d
@@ -293,9 +316,10 @@ def to_dot(g):
 import pybayes.IO.io
 
 if __name__ == "__main__":
-    # g = pybayes.IO.io.load_bif("dog-problem.bif")
-    # # print g.V
-    # # print get_mpe_naive(g, {g.V[0]: 'true'})
-    # d = todnnf(g)
+    g = pybayes.IO.io.load_bif("dog-problem.bif")
+    # print g.V
+    # print get_mpe_naive(g, {g.V[0]: 'true'})
+    ac = todnnf(g)
+    # print ac.mpe({'hear_bark': 'true'}, getinstance=True)
     # print to_dot(d)
-    test2()
+    # test2()
