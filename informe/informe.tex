@@ -194,16 +194,24 @@ instanciación completa, seleccionamos una variable $X$ que no esté
 instanciada y para cada valor $x$ que $X$ puede tomar, agregamos a $z$
 la asignación $\{ X = x \}$ y llamamos al procedimiento recursivamente.
 
-PONER AQUI EL ALGORITMO DE B\&B
+%%%%algoritmo aqui
 
 Llamemos a $L$ el conjunto de variables de $N$ a las que se le hizo
 split. Un resultado importante de \cite{ChoiChaviraDarwiche07} es que
 si todas las variables de $L$ están instanciadas entonces $MPE_p(N,
-\mathbf{e}) = \beta MPE_p(N', \mathbf{e}, \vec{\mathbf{e}})$. Como veremos
-más adelante, ordenar los nodos para aprovechar esta propiedad permite
-mejorar el proceso de búsqueda.
+\mathbf{e}) = \beta MPE_p(N', \mathbf{e}, \vec{\mathbf{e}})$.
+Como veremos en los resultados, ordenar los nodos para aprovechar esta propiedad
+permite mejorar el proceso de búsqueda.
 
-\section{Resultados}
+\section{Experimentos y resultados}
+
+Para evaluar la calidad del software desarrollado lo ejecutamos sobre distintos
+casos de prueba tomados de los casos usados en \cite{sangbeamekautzAAAI05}.
+Todos los casos consistieron de \emph{grids} $N \times N$ de variables, con un
+porcentaje especificado de nodos determinísticos. Por motivos de tiempo, el
+conjunto de pruebas no fue tan exhaustivo como debería. Sin embargo, sí pudimos
+obtener resultados preliminares que nos indican la calidad de las técnicas
+implementadas.
 
 \section{Conclusiones}
 
@@ -211,12 +219,16 @@ Podemos nombrar varios logros alcanzados en el proyecto. En primer lugar
 verificamos que la técnica de splitting puede influir fuertemente en el tiempo
 de compilación a d-DNNF de fórmulas generadas por una red.
 
+compilar vs. bnb
+
 La optimización basada en \emph{logical constraints} demostró su valor al
 reducir enormemente el tiempo de compilación a d-DNNF. En
 \cite{Darwiche01alogical} se explica que ,. Nosotros pudimos comprobar esa
 afirmación.
 
+Por último, también pudimos observar mejoras en la velocidad del cálculo
 Ordenamiento de nodos para instancinar las variables splitted se la fuma.
+
 
 \section{Trabajo futuro}
 
