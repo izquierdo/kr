@@ -194,9 +194,12 @@ instanciación completa, seleccionamos una variable $X$ que no esté
 instanciada y para cada valor $x$ que $X$ puede tomar, agregamos a $z$
 la asignación $\{ X = x \}$ y llamamos al procedimiento recursivamente.
 
+\begin{figure}
 \begin{center}
 \includegraphics[width=24em]{splitbnb.png}\\
+\caption{Algoritmo B\&B, tomado de \cite{ChoiChaviraDarwiche07}}
 \end{center}
+\end{figure}
 
 Llamemos a $L$ el conjunto de variables de $N$ a las que se le hizo
 split. Un resultado importante de \cite{ChoiChaviraDarwiche07} es que
@@ -215,21 +218,68 @@ conjunto de pruebas no fue tan exhaustivo como debería. Sin embargo, sí pudimo
 obtener resultados preliminares que nos indican la calidad de las técnicas
 implementadas.
 
+Las pruebas fueron realizadas en máquinas del Laboratorio Docente de
+Computación, con procesadores Intel Pentium D 3.40 GHz y 1GB de memoria.
 Las redes utilizadas están nombradas con el formato \emph{R-N}, donde $R$ es el
 porcentaje de nodos determinísticos y $N \times N$ el tamaño del grid.
 
 \begin{table}
 \begin{center}
-  \begin{tabular}{l | l | l | l}
+  \begin{tabular}{l | l | l | l | l}
     \hline
-    \#splits & 50-10 & 50-15 & 50-20 \\
+\#splits & 20 & 50 & 75 & 100 \\
     \hline
-    20 & 9s & x & x \\
-    50 & 8s & x & x \\
-    75 & 13s & x & x \\
-    100 & 17s & x & 2m23s \\
+50-10 & 9s & 8s & 13s & 17s \\
+50-15 & 1m09s & 27s & 21s & 19s \\
+50-20 & $>$30m & $>$30m & $>$30m & 2m23s \\
+75-10 & 5s & 7s & 9s & 11s  \\
+75-15 & 14s & 12s & 14s & 14s \\
+75-20 & $>$30m & $>$30m & $>$30m & $>$30m \\
+%90-10 & 4s & 5s & 6s & 9s \\
+%90-15 & 7s & 9s & 8s & 10s \\
+%90-20 & $>$30m & 1m09s & 22s & 29s \\
   \end{tabular}
   \caption{Tiempo de compilación a DNNF y creación de circuito según número de splits}
+\end{center}
+\end{table}
+
+\begin{table}
+\begin{center}
+  \begin{tabular}{l | l | l}
+    \hline
+    LC & no & sí \\
+    \hline
+    50-10 & 2960631 & 71043 \\
+    75-10 & 309123 & 2153 \\
+    90-10 & 327495 & 1315 \\
+    50-12 & 2291956 & 86649 \\
+    75-12 & 2717369 & 13259 \\
+    90-12 & 2961973 & 1335 \\
+    50-15 & $>$10m & 8342854 \\
+    75-15 & $>$10m & 63315 \\
+    90-15 & $>$10m & 2152 \\
+    50-20 & $>$10m & $>$ 10m \\
+    75-20 & $>$10m & 1753255 \\
+    90-20 & $>$10m & 9583
+  \end{tabular}
+  \caption{Tiempo de compilación a circuito y B\&B con 20 splits, con y sin logical constraints}
+\end{center}
+\end{table}
+
+\begin{table}
+\begin{center}
+  \begin{tabular}{l | l | l}
+    \hline
+    Ordenamiento & no & sí \\
+    \hline
+    50-10 & 20982 & 396 \\
+    75-10 & 49886 & 342 \\
+    90-10 & 10853 & 232 \\
+    50-12 & $>$10m & 3964 \\
+    75-12 & $>$10m & 626 \\
+    90-12 & $>$10m & 482 \\
+  \end{tabular}
+  \caption{Número de llamadas al DFS con 20 splits, con y sin ordenamiento de variables}
 \end{center}
 \end{table}
 
@@ -245,14 +295,14 @@ splits) contra la velocidad del branch and bound (menor cuando hacemos más
 splits).
 
 La optimización basada en \emph{logical constraints} demostró su valor al
-reducir enormemente el tiempo de compilación a d-DNNF. En
+reducir enormemente el número tiempo de compilación a d-DNNF. En
 \cite{Darwiche01alogical} se explica que es una optimización que lleva a una
 codificación más eficiente y que reduce dramáticamente el tamaño del d-DNNF
 compilado al explotar restricciones lógicas a nivel de la codificación.
 Nosotros pudimos comprobar esa
 afirmación.
 
-Por último, también pudimos observar mejoras en la velocidad del cálculo al
+Por último, también pudimos observar notables mejoras en la velocidad del cálculo al
 aplicar la heurística de ordenar los nodos para instanciar primero las variables
 divididas en el branch and bound.
 
