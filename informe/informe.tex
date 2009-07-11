@@ -70,9 +70,15 @@ ejecutó una serie de experimentos para evaluarla.
 
 \subsection{Cálculo de MPE utilizando teorías en d-DNNF}
 \label{sec:condificacion}
-Hablar aqui un poquito de las funciones multilineales
 
-La red bayesiana se convirtió a una teoría $\Delta$ en CNF de la
+Para comenzar definiremos el término de función multilineal, de central
+importancia para este proyecto ya que codificaremos redes bayesianas como
+funciones multilineales, a su vez codificadas como circuitos aritméticos
+mediante el paso de traducción a d-DNNF. Una función es multilineal si es una
+función aritmética de varias variables lineal en cada variable.
+
+En nuestra implementación, una red bayesiana se convirtió a una teoría $\Delta$
+en CNF de la
 siguiente forma
 \begin{itemize}
 \item Para cada variable $X$ de la red bayesiana que toma valores
@@ -90,10 +96,10 @@ siguiente forma
   \end{align}
 \end{itemize}
 
-Posteriormente la $\Delta$ se compila a una teoría $\Gamma$
+Posteriormente $\Delta$ se compila a una teoría $\Gamma$
 equivalente en d-DNNF smooth utilizando
 \texttt{c2d}~{\cite{darwicheAAAI02}}. Luego en $\Gamma$ se sustituyen
-las los literales negativos por $1$, las conjunciones por
+los literales negativos por $1$, las conjunciones por
 multiplicaciones y las disjunciones por sumas. Esta sustitución
 permite hacer inferencia sobre la red bayesiana sustituyendo en
 $\Gamma$ las variables $\theta$ por las probabilidades
@@ -103,7 +109,7 @@ compatible con la evidencia o 0 si es imcompatible~\cite{Darwiche01alogical}.
 Esta sustitución produce lo que se conoce como una representación en
 circuito aritmético de la red bayesiana. Este circuito aritmético, al
 evaluarlo de la forma indicada, corresponde a evaluar la función
-multilineal asociado a la red bayesiana.
+multilineal asociada a la red bayesiana.
 
 % Por ejemplo, para una red con variables $A$, $B$ y $C$, la función
 % multilineal asociada es
@@ -114,7 +120,7 @@ multilineal asociado a la red bayesiana.
 Cada sumando en la función multilineal de una red corresponde a la
 probabilidad de una instanciación particular compatible con la
 evidencia. Si sustituimos las sumas por el operador $\max$,
-obtendremos la asignación de variables de máxima para una evidencia,
+obtendremos la asignación de variables de máxima probabilidad para una evidencia,
 es decir, la probabilidad del MPE. Por lo tanto, si en $\Gamma$
 sustituimos las disjunciones por $\max$, entonces podemos calcular el
 MPE de la red utilizando el circuito aritmético.
@@ -138,12 +144,9 @@ omitir por completo a $\theta_{x|u_1,\dots,u_m}$ y las clausulas que
 la mencionan.
 
 Como se mostrará más adelante, estas simplificaciones tienen un gran
-impacto sobre el tamaño de la teoría comipliada cuando la red bayesiana
-esta compuesta por una gran cantidad de nodos determinísticos.
-
-Existe un segundo tipo de simplificación conocida como
-\textsl{context-specific independence}, sin embargo esta
-simplificación no se implemento para este proyecto.
+impacto sobre el tamaño de la teoría compilada cuando la red bayesiana
+esta compuesta por una gran cantidad de nodos determinísticos (probabilidad 0 o
+1).
 
 % \subsubsection{Detalles de implementación}
 % \label{sec:detall-de-impl}
@@ -152,11 +155,12 @@ simplificación no se implemento para este proyecto.
 \subsection{Cálculo de MPE para redes grandes}
 \label{sec:calculo-de-mpe}
 Para redes bayesianas con muchos nodos, el paso de compilación a
-d-DNNF que se explicó anteriormente no terminará en una tiempo
+d-DNNF que se explicó anteriormente no termina en una tiempo
 razonable. En este caso utilizamos la técnica de \textsl{node
   splitting} propuesta en~\cite{ChoiChaviraDarwiche07}.
 
-La idea es tomar la red original y hacer una serie splittings hasta
+La idea es tomar la red original y hacer una serie splittings (divisiones)
+hasta
 que sea posible compilar la red a d-DNNF y luego utilizar el MPE sobre
 esta nueva red (que se puede calcular utilizando el circuito
 aritmético) como heurística para obtener el MPE de la red original.
@@ -173,18 +177,18 @@ y $\beta = \prod_{C \in \mathbf{C}} |C|$ donde $\mathbf{C}$ es el conjunto de
 clones en $N'$.
 
 Si tenemos una red bayesiana $N'$ que es el resultado de hacer
-splitting sobre la red $N$, entonces el procedimiento para calcular el
+splitting sobre la red $N$, entonces el procedimiento para calcular
 $MPE(N,\mathbf{e})$ utilizando $N'$ se describe a continuación. Se
 tiene una variable $\mathbf{z}$ que representa una asignación parcial
 en $N$ y una segunda variable $q*$ que representa la cota inferior
 actual para el MPE de de $N$. La búsqueda se inicia con $\mathbf{z} =
 \mathbf{e}$ y $q* = 0$. En cada nodo del algoritmo de búsqueda
 computamos $q$, una cota superior para el MPE de $N'$ y la
-instanciación parcial $\mathbf{z}$, esto se puede hacer evaluando el
+instanciación parcial $\mathbf{z}$; esto se puede hacer evaluando el
 circuito aritmético. Si $q>q*$ entonces debemos continuar con la
-búsqueda porque puede ser posible que $z$ se pueda extender para
-conseguir una mejor aproximación que la que ya tenemos. Si $z$ ya
-tiene todas la variables instaciadas, entonces se puede demostrar que
+búsqueda porque es posible que $z$ se pueda extender para
+conseguir una aproximación mejor que la que ya tenemos. Si $z$ ya
+tiene todas la variables instanciadas, entonces se puede demostrar que
 $Pr(z) = q$ y entonces tenemos una nueva cota. Si $z$ no es una
 instanciación completa, seleccionamos una variable $X$ que no esté
 instanciada y para cada valor $x$ que $X$ puede tomar, agregamos a $z$
@@ -193,7 +197,7 @@ la asignación $\{ X = x \}$ y llamamos al procedimiento recursivamente.
 PONER AQUI EL ALGORITMO DE B\&B
 
 Llamemos a $L$ el conjunto de variables de $N$ a las que se le hizo
-split. Un resultado importante de~\cite{ChoiChaviraDarwiche07} es que
+split. Un resultado importante de \cite{ChoiChaviraDarwiche07} es que
 si todas las variables de $L$ están instanciadas entonces $MPE_p(N,
 \mathbf{e}) = \beta MPE_p(N', \mathbf{e}, \vec{\mathbf{e}})$. Como veremos
 más adelante, ordenar los nodos para aprovechar esta propiedad permite
@@ -203,7 +207,7 @@ mejorar el proceso de búsqueda.
 
 \section{Conclusiones}
 
-Podemos enumerar varios logros alcanzados en el proyecto. En primer lugar
+Podemos nombrar varios logros alcanzados en el proyecto. En primer lugar
 verificamos que la técnica de splitting puede influir fuertemente en el tiempo
 de compilación a d-DNNF de fórmulas generadas por una red.
 
@@ -216,7 +220,7 @@ Ordenamiento de nodos para instancinar las variables splitted se la fuma.
 
 \section{Trabajo futuro}
 
-Hay una optimización basada en \emph{Context–specific independence} (CSI)
+Hay una optimización basada en \emph{context–specific independence} (CSI)
 descrita en
 \cite{Darwiche01alogical} junto con la optimización de \emph{logical constraints}
 mencionada previamente. En resultados experimentales se ha mostrado que puede
@@ -226,7 +230,8 @@ seguir para la continuación de este proyecto es entonces ejecutar CSI sobre las
 fórmulas CNF antes de su compilación con c2d.
 
 Además, proponemos implementar el algoritmo de B\&B sobre la red en el
-lenguaje C y prestando mayor atención a la eficiencia del código. Creemos
+lenguaje \emph{C} (en vez de \emph{Python} como fue hecho) y prestando mayor
+atención a la eficiencia del código. Creemos
 que esto podría generar resultados aún mejores. En particular, pensamos en la
 posibilidad de lograr el objetivo de calcular los MPE con la técnica descrita
 para redes más grandes.
